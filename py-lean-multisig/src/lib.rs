@@ -2,8 +2,11 @@ use pyo3::prelude::*;
 use xmss as _;
 use rec_aggregation as _;
 
+mod error;
+
 #[pymodule]
-fn _lean_multisig(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    error::register(py, m)?;
     Ok(())
 }
