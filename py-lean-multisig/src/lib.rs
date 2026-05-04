@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use xmss as _;
 use rec_aggregation as _;
 
+mod conv;
 mod error;
 mod panic;
 
