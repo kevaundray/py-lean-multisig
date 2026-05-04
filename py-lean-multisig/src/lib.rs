@@ -6,7 +6,7 @@ mod error;
 mod panic;
 
 #[pymodule]
-fn _lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     error::register(py, m)?;
     Ok(())

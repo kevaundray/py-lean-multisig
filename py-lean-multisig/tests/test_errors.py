@@ -1,4 +1,4 @@
-import lean_multisig as lm
+import py_lean_multisig as lm
 
 
 def test_exception_hierarchy():

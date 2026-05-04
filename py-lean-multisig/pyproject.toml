@@ -17,6 +17,5 @@ classifiers = [
 dev = ["pytest>=8", "mypy>=1.10"]
 
 [tool.maturin]
-module-name = "lean_multisig._lean_multisig"
-python-source = "python"
 features = ["pyo3/extension-module"]
+include = ["py.typed", "py_lean_multisig.pyi"]
