@@ -1,3 +1,5 @@
 [toolchain]
-channel = "stable"
+# Pinned to satisfy upstream leanMultisig deps (ruint@1.18 requires rustc >= 1.90).
+# Bump deliberately when upstream MSRV moves.
+channel = "1.94"
 components = ["rustfmt", "clippy"]

@@ -2,6 +2,7 @@
 name = "py-lean-multisig"
 version = "0.0.1"
 edition = "2021"
+resolver = "2"
 
 [lib]
 name = "_lean_multisig"
@@ -9,3 +10,23 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.27", features = ["extension-module"] }
+
+# Upstream leanMultisig workspace, pinned by SHA. Bump deliberately and re-run parity tests.
+xmss            = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+rec_aggregation = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+backend         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+lean_compiler   = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+lean_vm         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+sub_protocols   = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+lean_prover     = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+utils           = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+
+ethereum_ssz = "0.10"
+serde        = { version = "1", features = ["derive"] }
+postcard     = { version = "1", features = ["alloc"] }
+rand         = "0.8"
+sha3         = "0.10"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
