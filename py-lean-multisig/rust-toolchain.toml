@@ -3,3 +3,8 @@
 # Bump deliberately when upstream MSRV moves.
 channel = "1.94"
 components = ["rustfmt", "clippy"]
+# x86_64-apple-darwin lets `cargo test` cross-compile to match the x86_64
+# Python venv on Apple Silicon developer machines (the host is aarch64 but the
+# Python interpreter and so libpython3.13.dylib are x86_64). Harmless on
+# non-macOS platforms — rustup only installs targets it can fetch.
+targets = ["x86_64-apple-darwin"]

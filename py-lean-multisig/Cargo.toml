@@ -6,10 +6,25 @@ resolver = "2"
 
 [lib]
 name = "_lean_multisig"
-crate-type = ["cdylib"]
+# rlib alongside cdylib so `cargo test` can link the crate as a Rust library.
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# `extension-module` tells pyo3 to link against libpython lazily (correct for
+# the cdylib loaded by Python). It must be off for `cargo test`, which builds
+# a standalone binary that needs libpython resolved at link time.
+#
+# Default-on so `maturin develop` and `maturin build` work with no extra flags.
+# Local rust-side tests:
+#   PYO3_PYTHON=$(pwd)/.venv/bin/python \
+#     cargo test --lib --no-default-features --features test-pyo3 \
+#     --target x86_64-apple-darwin    # only on Apple Silicon w/ x86_64 venv
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+test-pyo3 = ["pyo3/auto-initialize"]
 
 [dependencies]
-pyo3 = { version = "0.27", features = ["extension-module"] }
+pyo3 = { version = "0.27", default-features = false, features = ["macros"] }
 
 # Upstream leanMultisig workspace, pinned by SHA. Bump deliberately and re-run parity tests.
 xmss            = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }

@@ -3,6 +3,7 @@ use xmss as _;
 use rec_aggregation as _;
 
 mod error;
+mod panic;
 
 #[pymodule]
 fn _lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
