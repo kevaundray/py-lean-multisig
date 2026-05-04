@@ -5,6 +5,7 @@ use rec_aggregation as _;
 mod conv;
 mod error;
 mod panic;
+mod ssz;
 
 #[pymodule]
 fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
