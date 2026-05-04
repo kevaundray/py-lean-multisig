@@ -1,0 +1,22 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "py-lean-multisig"
+version = "0.0.1"
+description = "Python bindings for leanMultisig: XMSS signatures + zkVM aggregation"
+requires-python = ">=3.11"
+license = { text = "MIT OR Apache-2.0" }
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "mypy>=1.10"]
+
+[tool.maturin]
+module-name = "lean_multisig._lean_multisig"
+python-source = "python"
+features = ["pyo3/extension-module"]

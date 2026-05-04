@@ -1,0 +1,11 @@
+[package]
+name = "py-lean-multisig"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+name = "_lean_multisig"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.27", features = ["extension-module"] }
