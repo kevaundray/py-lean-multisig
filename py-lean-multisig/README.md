@@ -1,14 +1,13 @@
 # py-lean-multisig
 
-Python bindings for [leanMultisig](https://github.com/leanEthereum/leanMultisig)'s
-hash-based XMSS signature primitives — the post-quantum signature scheme
-targeted by the Lean Ethereum project.
+Python bindings for [leanMultisig](https://github.com/leanEthereum/leanMultisig):
+hash-based XMSS signatures (the post-quantum signature scheme targeted by the
+Lean Ethereum project) plus zkVM-backed signature aggregation.
 
-> **Scope (v0.0.x):** XMSS keygen, sign, verify only. Signature aggregation
-> via the leanMultisig zkVM is **not** included — it requires runtime
-> compilation of a lean-DSL aggregation circuit through ~700 LOC of upstream
-> machinery that's currently `pub(crate)`. Will land when upstream exposes
-> a usable `init_aggregation_bytecode_from_source` API or we accept a fork.
+> **Note:** Aggregation requires an upstream fix (a rust-embed-based replacement
+> for the build-time `env!("CARGO_MANIFEST_DIR")` lookup in `rec_aggregation`).
+> Currently consumed via a local path dep against the `kw/rust-embed-src-code`
+> branch; will switch to a git pin once merged.
 
 ## Install
 
@@ -44,6 +43,38 @@ sig2 = lm.Signature.from_ssz(sig_bytes)
 assert pk == pk2 and signature == sig2
 ```
 
+## Aggregating signatures
+
+`Prover` aggregates N XMSS signatures (all over the same `(message, slot)`)
+into a single zkVM-backed SNARK proof; `Verifier` checks it. Both pay a
+~5–10s startup cost on first instantiation while the lean-DSL aggregation
+circuit is compiled to bytecode and DFT twiddles are precomputed.
+
+```python
+import py_lean_multisig as lm
+
+# Generate 4 distinct keys + signatures over the same message+slot
+message = b"\x42" * 32
+slot = 5
+signers = [lm.keygen(bytes([i + 1]) * 32, 0, 1023) for i in range(4)]
+pks  = [pk for _, pk in signers]
+sigs = [lm.sign(sk, message, slot, rng_seed=bytes([i + 100]) * 32)
+        for i, (sk, _) in enumerate(signers)]
+
+prover = lm.Prover(log_inv_rate=4)   # 1..=4: smaller = faster + bigger proof
+verifier = lm.Verifier()
+
+# Aggregate returns the keys in the order the verifier needs them
+sorted_pks, agg = prover.aggregate(pks, sigs, message, slot)
+
+verifier.verify(sorted_pks, message, agg, slot)   # raises VerifyError on failure
+
+# AggregatedSignature serializes via to_bytes/from_bytes (postcard+lz4)
+# or to_ssz/from_ssz (currently the same byte payload).
+wire = agg.to_bytes()
+agg2 = lm.AggregatedSignature.from_bytes(wire)
+```
+
 ## API
 
 ### Functions
@@ -67,6 +98,27 @@ assert pk == pk2 and signature == sig2
 - `SecretKey` — **deliberately not serializable** (persisting one-time-use
   signing material is a footgun). Exposes `public_key`, `slot_start`,
   `slot_end` as properties.
+- `AggregatedSignature` — variable-length zkVM SNARK proof. Round-trips
+  through `to_bytes()` / `from_bytes()` (native postcard+lz4) and
+  `to_ssz()` / `from_ssz()` (consensus-layer container — currently
+  byte-identical to native).
+
+### Aggregation classes
+
+- `Prover(*, log_inv_rate: int = 2)` — `log_inv_rate` in `1..=4` selects
+  the WHIR rate; smaller is faster to prove + verify but produces a
+  bigger proof. Constructor pays a ~5–10s init cost (compiles the
+  lean-DSL aggregation circuit to zkVM bytecode + precomputes DFT
+  twiddles); subsequent `Prover()` instantiations in the same process
+  are no-ops.
+- `Prover.aggregate(pub_keys, signatures, message, slot, *, children=None)`
+  — returns `(sorted_pub_keys, AggregatedSignature)`. The first element
+  is the `pub_keys` list re-ordered to match what `Verifier.verify`
+  requires; pass it through unchanged.
+- `Verifier()` — same init cost as `Prover` but skips DFT twiddles.
+- `Verifier.verify(pub_keys, message, agg, slot)` — `pub_keys` must be
+  the sorted list returned by `aggregate`. Raises `VerifyError` on
+  failure; returns `None` on success.
 
 ### Exceptions
 
@@ -74,10 +126,11 @@ All wrapper exceptions inherit from `LeanMultisigError`:
 
 - `KeygenError` — invalid slot range.
 - `SignError` — slot out of the secret key's range.
-- `VerifyError` — signature failed WOTS recovery or Merkle path check.
+- `VerifyError` — signature failed WOTS recovery, Merkle path check, or
+  aggregated-signature verification.
+- `AggregationError` — prover failure or panic during `Prover.aggregate`.
 - `SerializationError` — wrong-length input bytes, malformed SSZ, or a
   KoalaBear field element with the high bit set.
-- `AggregationError` — reserved for future aggregation work.
 - (`SerializationError` does **not** inherit from `ValueError` — by design.
   Catch `LeanMultisigError` or the specific subclass.)
 
@@ -86,15 +139,20 @@ All wrapper exceptions inherit from `LeanMultisigError`:
 - **Build:** maturin + PyO3 0.27. `pyo3/extension-module` is enabled by
   maturin at build time, not as a static cargo feature, so `cargo build`
   and `cargo check` work normally.
-- **Upstream pin:** `xmss` and `backend` from `leanEthereum/leanMultisig`
-  are pinned by git SHA in `Cargo.toml`. Bumping the pin requires
-  re-running `tests/test_parity.py` to confirm the SSZ wire format hasn't
-  drifted (the test asserts fixed bytes for fixed inputs).
+- **Upstream pin:** `xmss`, `backend`, and `rec_aggregation` come from
+  `leanEthereum/leanMultisig`. Bumping the pin requires re-running
+  `tests/test_parity.py` to confirm the SSZ wire format hasn't drifted
+  (the test asserts fixed bytes for fixed inputs).
+- **AVX2 required on x86_64.** `.cargo/config.toml` enables
+  `target-feature=+avx2` for x86_64 targets so the upstream backend uses
+  its tested packed-field path instead of the `no_packing` fallback —
+  the fallback produces wrong proof witnesses under aggregation. NEON is
+  on by default for aarch64.
 - **Logging:** the wrapper does not initialize `tracing_subscriber` — that's
   the embedding application's job.
 - **Threading:** PyO3 calls hold the GIL. Releasing it inside `sign` /
-  `verify` is deferred to a future version pending benchmarks against
-  Python-thread contention.
+  `verify` / `Prover.aggregate` / `Verifier.verify` is deferred to a
+  future version pending benchmarks against Python-thread contention.
 
 ## Development
 
