@@ -1,73 +1,37 @@
-"""Verify the .pyi stubs cover every export by type-checking a sample
-script with `mypy --strict`. Fails CI if a new symbol is added to the
-Rust module without a corresponding stub entry.
+"""Verify the .pyi stubs match the runtime extension via mypy.stubtest.
+
+stubtest introspects the actual installed module and compares against
+the stub — catches missing symbols, wrong signatures, parameter
+positionality issues, and __init__-vs-__new__ mistakes that a sample-
+script + mypy --strict approach silently misses.
 """
 
 import pathlib
 import shutil
 import subprocess
 import sys
-import textwrap
 
 import pytest
 
 
-SAMPLE = textwrap.dedent(
-    """
-    import py_lean_multisig as lm
-
-    sk: lm.SecretKey
-    pk: lm.PublicKey
-    sk, pk = lm.keygen(b"\\x00" * 32, 0, 7)
-    sig: lm.Signature = lm.sign(sk, b"\\x00" * 32, 3)
-    sig2: lm.Signature = lm.sign(sk, b"\\x00" * 32, 3, rng_seed=b"\\x01" * 32)
-    lm.verify(pk, b"\\x00" * 32, sig, 3)
-
-    pk_bytes: bytes = pk.to_bytes()
-    pk2: lm.PublicKey = lm.PublicKey.from_bytes(pk_bytes)
-    assert pk == pk2
-    sig_bytes: bytes = sig.to_bytes()
-    sig3: lm.Signature = lm.Signature.from_bytes(sig_bytes)
-
-    start: int = sk.slot_start
-    end: int = sk.slot_end
-    sk_pk: lm.PublicKey = sk.public_key
-
-    version: str = lm.__version__
-
-    # Aggregation surface
-    p: lm.Prover = lm.Prover(log_inv_rate=2)
-    v: lm.Verifier = lm.Verifier()
-    sorted_pks: list[lm.PublicKey]
-    agg: lm.AggregatedSignature
-    sorted_pks, agg = p.aggregate([pk], [sig], b"\\x00" * 32, 3)
-    v.verify(sorted_pks, b"\\x00" * 32, agg, 3)
-    raw: bytes = agg.to_bytes()
-    agg2: lm.AggregatedSignature = lm.AggregatedSignature.from_bytes(raw)
-    ssz_bytes: bytes = agg2.to_bytes()
-    agg3: lm.AggregatedSignature = lm.AggregatedSignature.from_bytes(ssz_bytes)
-
-    err_classes: tuple[type[lm.LeanMultisigError], ...] = (
-        lm.KeygenError,
-        lm.SignError,
-        lm.VerifyError,
-        lm.AggregationError,
-        lm.SerializationError,
-    )
-    """
-)
-
-
-def test_mypy_strict_covers_every_export(tmp_path: pathlib.Path) -> None:
+def test_stubs_match_runtime():
     if shutil.which("mypy") is None:
         pytest.skip("mypy not installed")
-    script = tmp_path / "_lm_stub_check.py"
-    script.write_text(SAMPLE)
+    project_root = pathlib.Path(__file__).resolve().parent.parent
+    allowlist = project_root / "stubtest_allowlist.txt"
     result = subprocess.run(
-        [sys.executable, "-m", "mypy", "--strict", str(script)],
+        [
+            sys.executable,
+            "-m",
+            "mypy.stubtest",
+            "py_lean_multisig",
+            "--allowlist",
+            str(allowlist),
+        ],
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, (
-        f"mypy --strict failed:\n--- stdout ---\n{result.stdout}\n--- stderr ---\n{result.stderr}"
+        f"mypy.stubtest failed:\n--- stdout ---\n{result.stdout}\n"
+        f"--- stderr ---\n{result.stderr}"
     )

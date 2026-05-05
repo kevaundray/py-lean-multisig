@@ -1,10 +1,31 @@
 """Type stubs for py_lean_multisig.
 
-Hand-written, kept in lockstep with the Rust extension. tests/test_stubs.py
-runs mypy --strict against an example exercising every export.
+Hand-written, kept in lockstep with the Rust extension.
+`tests/test_stubs.py` runs `mypy.stubtest` to verify the stub matches
+the runtime module — symbol presence, signatures, and parameter
+positionality.
 """
 
 from typing import final
+
+__all__ = [
+    "__version__",
+    "PublicKey",
+    "SecretKey",
+    "Signature",
+    "AggregatedSignature",
+    "Prover",
+    "Verifier",
+    "keygen",
+    "sign",
+    "verify",
+    "LeanMultisigError",
+    "KeygenError",
+    "SignError",
+    "VerifyError",
+    "AggregationError",
+    "SerializationError",
+]
 
 __version__: str
 
@@ -13,8 +34,8 @@ class PublicKey:
     @classmethod
     def from_bytes(cls, data: bytes) -> "PublicKey": ...
     def to_bytes(self) -> bytes: ...
-    def __eq__(self, other: object) -> bool: ...
-    def __ne__(self, other: object) -> bool: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __ne__(self, value: object, /) -> bool: ...
     def __hash__(self) -> int: ...
     def __repr__(self) -> str: ...
 
@@ -33,8 +54,8 @@ class Signature:
     @classmethod
     def from_bytes(cls, data: bytes) -> "Signature": ...
     def to_bytes(self) -> bytes: ...
-    def __eq__(self, other: object) -> bool: ...
-    def __ne__(self, other: object) -> bool: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __ne__(self, value: object, /) -> bool: ...
     def __hash__(self) -> int: ...
     def __repr__(self) -> str: ...
 
@@ -47,7 +68,8 @@ class AggregatedSignature:
 
 @final
 class Prover:
-    def __init__(self, *, log_inv_rate: int = ...) -> None: ...
+    # PyO3 #[new] surfaces as Python __new__, not __init__.
+    def __new__(cls, *, log_inv_rate: int = ...) -> "Prover": ...
     def aggregate(
         self,
         pub_keys: list[PublicKey],
@@ -60,7 +82,7 @@ class Prover:
 
 @final
 class Verifier:
-    def __init__(self) -> None: ...
+    def __new__(cls) -> "Verifier": ...
     def verify(
         self,
         pub_keys: list[PublicKey],
