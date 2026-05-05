@@ -1,5 +1,6 @@
 [toolchain]
-# Pinned to satisfy upstream leanMultisig deps (ruint@1.18 requires rustc >= 1.90).
-# Bump deliberately when upstream MSRV moves.
+# Pinned to a known-good stable: upstream uses unsigned `is_multiple_of`
+# (stabilized in 1.87) and `ruint@1.18` requires rustc >= 1.90, so the
+# system "stable" alias may be too old. Bump deliberately.
 channel = "1.94"
 components = ["rustfmt", "clippy"]

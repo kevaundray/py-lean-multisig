@@ -35,6 +35,18 @@ SAMPLE = textwrap.dedent(
 
     version: str = lm.__version__
 
+    # Aggregation surface
+    p: lm.Prover = lm.Prover(log_inv_rate=2)
+    v: lm.Verifier = lm.Verifier()
+    sorted_pks: list[lm.PublicKey]
+    agg: lm.AggregatedSignature
+    sorted_pks, agg = p.aggregate([pk], [sig], b"\\x00" * 32, 3)
+    v.verify(sorted_pks, b"\\x00" * 32, agg, 3)
+    raw: bytes = agg.to_bytes()
+    agg2: lm.AggregatedSignature = lm.AggregatedSignature.from_bytes(raw)
+    ssz_bytes: bytes = agg2.to_ssz()
+    agg3: lm.AggregatedSignature = lm.AggregatedSignature.from_ssz(ssz_bytes)
+
     err_classes: tuple[type[lm.LeanMultisigError], ...] = (
         lm.KeygenError,
         lm.SignError,

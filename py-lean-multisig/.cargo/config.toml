@@ -1,0 +1,16 @@
+# Enable AVX2 on x86_64-apple-darwin so the upstream backend uses its
+# tested packed-field path instead of the no_packing fallback (which
+# silently breaks the prover under aggregation). Mirrors what upstream
+# does via `target-cpu=native` in its own .cargo/config.toml — but
+# scoped to a portable feature flag so this works in CI too.
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-feature=+avx2"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-feature=+avx2"]
+
+[target.aarch64-apple-darwin]
+# NEON is enabled by default on aarch64 — no override needed.
+
+[target.aarch64-unknown-linux-gnu]
+# NEON is enabled by default on aarch64 — no override needed.

@@ -14,18 +14,18 @@ crate-type = ["cdylib"]
 # build/check work normally without the extension-module link rules.
 pyo3 = { version = "0.27" }
 
-# Upstream leanMultisig — only the two crates we actually need for XMSS
-# primitives. The aggregation/zkVM crates (rec_aggregation, lean_compiler,
-# lean_vm, sub_protocols, lean_prover, utils) are intentionally not pulled
-# in: aggregation requires a runtime lean-DSL compile that hardcodes a
-# build-time CARGO_MANIFEST_DIR path and depends on ~700 LOC of
-# pub(crate) machinery that can't be reached without forking upstream.
-# Revisit when upstream exposes init_aggregation_bytecode_from_source.
-xmss    = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
-backend = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
+# Upstream leanMultisig — pointed at the local working copy on the
+# kw/rust-embed-src-code branch while we validate the rust-embed fix
+# end-to-end through the Python wrapper. Switch back to a git pin once
+# the fix is merged upstream.
+xmss            = { path = "../../leanMultisig/crates/xmss" }
+backend         = { path = "../../leanMultisig/crates/backend" }
+rec_aggregation = { path = "../../leanMultisig/crates/rec_aggregation" }
 
-hex  = "0.4"
-rand = "0.10"
+hex      = "0.4"
+rand     = "0.10"
+postcard = { version = "1", features = ["alloc"] }
+serde    = { version = "1", features = ["derive"] }
 
 [profile.release]
 lto = "thin"

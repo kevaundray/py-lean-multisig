@@ -38,6 +38,40 @@ class Signature:
     def __hash__(self) -> int: ...
     def __repr__(self) -> str: ...
 
+@final
+class AggregatedSignature:
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "AggregatedSignature": ...
+    def to_bytes(self) -> bytes: ...
+    @classmethod
+    def from_ssz(cls, data: bytes) -> "AggregatedSignature": ...
+    def to_ssz(self) -> bytes: ...
+    def __repr__(self) -> str: ...
+
+@final
+class Prover:
+    def __init__(self, *, log_inv_rate: int = ...) -> None: ...
+    def aggregate(
+        self,
+        pub_keys: list[PublicKey],
+        signatures: list[Signature],
+        message: bytes,
+        slot: int,
+        *,
+        children: list[tuple[list[PublicKey], AggregatedSignature]] | None = ...,
+    ) -> tuple[list[PublicKey], AggregatedSignature]: ...
+
+@final
+class Verifier:
+    def __init__(self) -> None: ...
+    def verify(
+        self,
+        pub_keys: list[PublicKey],
+        message: bytes,
+        agg: AggregatedSignature,
+        slot: int,
+    ) -> None: ...
+
 def keygen(seed: bytes, slot_start: int, slot_end: int) -> tuple[SecretKey, PublicKey]: ...
 def sign(
     sk: SecretKey,
