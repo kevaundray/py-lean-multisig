@@ -1,11 +1,3 @@
-"""Verify the .pyi stubs match the runtime extension via mypy.stubtest.
-
-stubtest introspects the actual installed module and compares against
-the stub — catches missing symbols, wrong signatures, parameter
-positionality issues, and __init__-vs-__new__ mistakes that a sample-
-script + mypy --strict approach silently misses.
-"""
-
 import pathlib
 import shutil
 import subprocess

@@ -1,20 +1,3 @@
-"""Regression-guard the wire format (postcard via upstream serde) against
-silent drift.
-
-These fixed bytes are generated at the upstream pin in Cargo.toml. If
-they change, either:
-  - we changed encoders (intentional — regenerate the fixtures), or
-  - upstream's KoalaBear / WotsSignature / XmssPublicKey representation
-    drifted under us (bump the upstream pin deliberately, then regenerate).
-
-Re-generate from Python with:
-
-    sk, pk = py_lean_multisig.keygen(b"\\x00"*32, 0, 7)
-    sig = py_lean_multisig.sign(sk, b"\\x42"*32, 5, rng_seed=b"\\x99"*32)
-    pk.to_bytes().hex()
-    hashlib.sha256(sig.to_bytes()).hexdigest()
-"""
-
 import hashlib
 
 import py_lean_multisig as lm

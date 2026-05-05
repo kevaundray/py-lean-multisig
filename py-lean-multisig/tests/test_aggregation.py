@@ -1,11 +1,3 @@
-"""End-to-end tests for Prover.aggregate / Verifier.verify.
-
-Tests are slow (Prover() init compiles the lean-DSL aggregation circuit,
-~5-10s; aggregating 4 sigs ~1-2s in release mode). All test_aggregation.*
-tests share a session-scoped Prover/Verifier so the bytecode + DFT
-twiddle precompute cost is paid once per pytest run.
-"""
-
 import struct
 
 import pytest
@@ -14,7 +6,7 @@ import py_lean_multisig as lm
 
 # Use the same field-element-friendly message format upstream uses for
 # benchmarks: 8 LE u32s with the high bit clear. The exact values don't
-# matter — only that each value is < 2^31.
+# matter, only that each value is < 2^31.
 MSG = b"".join(struct.pack("<I", i) for i in range(8))
 SLOT = 111
 
