@@ -127,3 +127,32 @@ def test_verify_wrong_message_raises(prover, verifier):
     other_msg = b"".join(struct.pack("<I", 100 + i) for i in range(8))
     with pytest.raises(lm.VerifyError):
         verifier.verify(sorted_pks, other_msg, agg, SLOT)
+
+
+def test_hierarchical_aggregation(prover, verifier):
+    """Aggregate two leaves (2 sigs each) into child proofs, then
+    aggregate the children at the top level via the `children=` kwarg.
+    Verifier sees the union of all leaf pubkeys."""
+    # Two disjoint sets of signers (different seed ranges so the leaf
+    # pubkey sets don't overlap)
+    pks_a, sigs_a = _signers(2)
+    pairs_b = [lm.keygen(bytes([(i + 50) % 256]) * 32, 111, 112) for i in range(2)]
+    sks_b = [sk for sk, _ in pairs_b]
+    pks_b = [pk for _, pk in pairs_b]
+    sigs_b = [
+        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 200) % 256]) * 32)
+        for i, sk in enumerate(sks_b)
+    ]
+
+    # Layer 1: aggregate each leaf separately
+    sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, MSG, SLOT)
+    sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, MSG, SLOT)
+
+    # Layer 2: aggregate the two children with no fresh raw signatures
+    sorted_pks_top, agg_top = prover.aggregate(
+        [], [], MSG, SLOT,
+        children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
+    )
+
+    # Verifier sees the deduplicated union of all leaf pubkeys
+    verifier.verify(sorted_pks_top, MSG, agg_top, SLOT)
