@@ -9,7 +9,6 @@ use rec_aggregation::{
 use xmss::{XmssPublicKey, XmssSignature};
 
 use crate::error::{AggregationError, VerifyError};
-use crate::panic::catch;
 use crate::types::{message_from_bytes, PyAggregatedSignature, PyPublicKey, PySignature};
 
 #[pyclass(name = "Prover", module = "py_lean_multisig")]
@@ -28,15 +27,10 @@ impl PyProver {
                 log_inv_rate
             )));
         }
-        catch(
-            || {
-                // Match upstream's run_aggregation_benchmark order: twiddles first, then bytecode.
-                precompute_dft_twiddles::<KoalaBear>(1 << 24);
-                init_aggregation_bytecode();
-                Ok(Self { log_inv_rate })
-            },
-            |m| AggregationError::new_err(format!("Prover init panicked: {}", m)),
-        )
+        // Match upstream's run_aggregation_benchmark order: twiddles first, then bytecode.
+        precompute_dft_twiddles::<KoalaBear>(1 << 24);
+        init_aggregation_bytecode();
+        Ok(Self { log_inv_rate })
     }
 
     #[pyo3(signature = (pub_keys, signatures, message, slot, *, children=None))]
@@ -78,27 +72,21 @@ impl PyProver {
             .map(|(p, a)| (p.as_slice(), a.clone()))
             .collect();
 
-        let log_inv_rate = self.log_inv_rate;
-        catch(
-            || {
-                let (pks_out, agg) =
-                    xmss_aggregate(&children_refs, raw_xmss, &msg_fe, slot, log_inv_rate)
-                        .map_err(|e| {
-                            AggregationError::new_err(format!("aggregation failed: {:?}", e))
-                        })?;
-                let py_pks: Vec<PyPublicKey> = pks_out
-                    .into_iter()
-                    .map(|pk| PyPublicKey { inner: Arc::new(pk) })
-                    .collect();
-                Ok((
-                    py_pks,
-                    PyAggregatedSignature {
-                        inner: Arc::new(agg),
-                    },
-                ))
+        let (pks_out, agg) =
+            xmss_aggregate(&children_refs, raw_xmss, &msg_fe, slot, self.log_inv_rate)
+                .map_err(|e| {
+                    AggregationError::new_err(format!("aggregation failed: {:?}", e))
+                })?;
+        let py_pks: Vec<PyPublicKey> = pks_out
+            .into_iter()
+            .map(|pk| PyPublicKey { inner: Arc::new(pk) })
+            .collect();
+        Ok((
+            py_pks,
+            PyAggregatedSignature {
+                inner: Arc::new(agg),
             },
-            |m| AggregationError::new_err(format!("aggregation panicked: {}", m)),
-        )
+        ))
     }
 }
 
@@ -109,13 +97,8 @@ pub struct PyVerifier;
 impl PyVerifier {
     #[new]
     fn new() -> PyResult<Self> {
-        catch(
-            || {
-                init_aggregation_bytecode();
-                Ok(Self)
-            },
-            |m| VerifyError::new_err(format!("Verifier init panicked: {}", m)),
-        )
+        init_aggregation_bytecode();
+        Ok(Self)
     }
 
     fn verify(
@@ -127,18 +110,12 @@ impl PyVerifier {
     ) -> PyResult<()> {
         let msg_fe = message_from_bytes(message)?;
         let pks: Vec<XmssPublicKey> = pub_keys.iter().map(|p| (*p.inner).clone()).collect();
-        let agg_inner = agg.inner.clone();
-        catch(
-            || {
-                xmss_verify_aggregation(&pks, &agg_inner, &msg_fe, slot).map_err(|e| {
-                    VerifyError::new_err(format!(
-                        "aggregated signature verification failed: {:?}",
-                        e
-                    ))
-                })?;
-                Ok(())
-            },
-            |m| VerifyError::new_err(format!("verifier panicked: {}", m)),
-        )
+        xmss_verify_aggregation(&pks, &agg.inner, &msg_fe, slot).map_err(|e| {
+            VerifyError::new_err(format!(
+                "aggregated signature verification failed: {:?}",
+                e
+            ))
+        })?;
+        Ok(())
     }
 }

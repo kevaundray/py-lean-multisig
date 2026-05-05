@@ -3,7 +3,6 @@ use pyo3::wrap_pyfunction;
 
 mod aggregation;
 mod error;
-mod panic;
 mod primitives;
 mod types;
 
