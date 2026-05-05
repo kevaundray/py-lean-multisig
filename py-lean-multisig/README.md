@@ -163,13 +163,27 @@ All wrapper exceptions inherit from `LeanMultisigError`:
 
 ## Development
 
+Uses [`uv`](https://github.com/astral-sh/uv) for venv + dependency
+management (matches the pattern py-arkworks-bls12381 uses).
+
 ```bash
 cd py-lean-multisig
-python -m venv .venv
-.venv/bin/pip install maturin pytest mypy
-.venv/bin/maturin develop
-.venv/bin/python -m pytest tests/ -v
+
+# One-time setup: create the venv, install maturin + dev deps, build
+# and editable-install the extension.
+uv venv
+uv pip install maturin pytest mypy
+uv run maturin develop --release --extras dev
+
+# Run the test suite.
+uv run pytest tests/ -v
+
+# Verify the .pyi stubs match the runtime extension.
+uv run python -m mypy.stubtest py_lean_multisig --allowlist stubtest_allowlist.txt
 ```
+
+After Rust source changes, re-run `uv run maturin develop --release` to
+rebuild the extension.
 
 ## License
 

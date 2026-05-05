@@ -25,8 +25,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      # rust-toolchain.toml pins channel 1.94; this action installs whatever
-      # the file says.
+      - uses: astral-sh/setup-uv@v7
+
+      # rust-toolchain.toml pins the rustc version; this action honors it.
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -35,11 +36,19 @@ jobs:
         with:
           workspaces: py-lean-multisig
 
-      - name: Install Python deps
-        run: pip install maturin pytest mypy
+      - name: Create virtualenv
+        run: uv venv
 
-      - name: Build extension (release)
-        run: maturin develop --release
+      - name: Build + install (release, with dev extras)
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: py-lean-multisig
+          command: develop
+          args: --release --extras dev
+          sccache: true
 
       - name: Run tests
-        run: pytest -v
+        run: uv run pytest tests/ -v
+
+      - name: Check type stubs match runtime
+        run: uv run python -m mypy.stubtest py_lean_multisig --allowlist stubtest_allowlist.txt
