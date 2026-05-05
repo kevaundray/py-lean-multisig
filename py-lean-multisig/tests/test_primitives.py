@@ -113,3 +113,50 @@ def test_signature_ssz_round_trip():
     assert len(raw) == 1208  # WOTS (696) + Merkle proof (512)
     sig2 = lm.Signature.from_ssz(raw)
     assert sig == sig2
+
+
+def test_verify_round_trip():
+    sk, pk = lm.keygen(b"\x00" * 32, 0, 7)
+    msg = b"\x22" * 32
+    sig = lm.sign(sk, msg, 5, rng_seed=b"\x01" * 32)
+    # Returns None on success
+    assert lm.verify(pk, msg, sig, 5) is None
+
+
+def test_verify_tampered_message_raises():
+    sk, pk = lm.keygen(b"\x00" * 32, 0, 7)
+    sig = lm.sign(sk, b"\x22" * 32, 5, rng_seed=b"\x01" * 32)
+    with pytest.raises(lm.VerifyError):
+        lm.verify(pk, b"\x33" * 32, sig, 5)
+
+
+def test_verify_tampered_slot_raises():
+    sk, pk = lm.keygen(b"\x00" * 32, 0, 7)
+    sig = lm.sign(sk, b"\x22" * 32, 5, rng_seed=b"\x01" * 32)
+    with pytest.raises(lm.VerifyError):
+        lm.verify(pk, b"\x22" * 32, sig, 4)
+
+
+def test_verify_wrong_pubkey_raises():
+    sk_a, _ = lm.keygen(b"\x00" * 32, 0, 7)
+    _, pk_b = lm.keygen(b"\x01" * 32, 0, 7)
+    sig = lm.sign(sk_a, b"\x22" * 32, 5, rng_seed=b"\x01" * 32)
+    with pytest.raises(lm.VerifyError):
+        lm.verify(pk_b, b"\x22" * 32, sig, 5)
+
+
+def test_verify_short_message_raises_serialization_error():
+    sk, pk = lm.keygen(b"\x00" * 32, 0, 7)
+    sig = lm.sign(sk, b"\x22" * 32, 5, rng_seed=b"\x01" * 32)
+    with pytest.raises(lm.SerializationError):
+        lm.verify(pk, b"\x22" * 31, sig, 5)
+
+
+def test_verify_after_ssz_roundtrip():
+    """Signature/PublicKey round-tripped through SSZ should still verify."""
+    sk, pk = lm.keygen(b"\x00" * 32, 0, 7)
+    msg = b"\x22" * 32
+    sig = lm.sign(sk, msg, 5, rng_seed=b"\x01" * 32)
+    pk2 = lm.PublicKey.from_ssz(pk.to_ssz())
+    sig2 = lm.Signature.from_ssz(sig.to_ssz())
+    assert lm.verify(pk2, msg, sig2, 5) is None

@@ -3,10 +3,10 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use xmss::{xmss_key_gen, xmss_sign, XmssKeyGenError, XmssSignatureError};
+use xmss::{xmss_key_gen, xmss_sign, xmss_verify, XmssKeyGenError, XmssSignatureError, XmssVerifyError};
 
 use crate::conv::message_from_bytes;
-use crate::error::{KeygenError, SerializationError, SignError};
+use crate::error::{KeygenError, SerializationError, SignError, VerifyError};
 use crate::panic::catch;
 use crate::types::{PyPublicKey, PySecretKey, PySignature};
 
@@ -70,5 +70,24 @@ pub fn sign(
             Ok(PySignature { inner: Arc::new(sig) })
         },
         |m| SignError::new_err(format!("sign panicked: {}", m)),
+    )
+}
+
+#[pyfunction]
+pub fn verify(pk: &PyPublicKey, message: &[u8], sig: &PySignature, slot: u32) -> PyResult<()> {
+    let msg_fe = message_from_bytes(message)?;
+    let pk_inner = pk.inner.clone();
+    let sig_inner = sig.inner.clone();
+    catch(
+        || {
+            xmss_verify(&pk_inner, &msg_fe, &sig_inner, slot).map_err(|e| match e {
+                XmssVerifyError::InvalidWots => VerifyError::new_err("WOTS recovery failed"),
+                XmssVerifyError::InvalidMerklePath => {
+                    VerifyError::new_err("Merkle path does not match public key root")
+                }
+            })?;
+            Ok(())
+        },
+        |m| VerifyError::new_err(format!("verify panicked: {}", m)),
     )
 }
