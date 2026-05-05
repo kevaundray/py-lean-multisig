@@ -78,7 +78,7 @@ impl PyProver {
 
         let log_inv_rate = self.log_inv_rate;
         let (pks_out, agg) = py
-            .allow_threads(|| {
+            .detach(|| {
                 xmss_aggregate(&children_refs, raw_xmss, &msg_fe, slot, log_inv_rate)
             })
             .map_err(|e| AggregationError::new_err(format!("aggregation failed: {:?}", e)))?;
@@ -117,7 +117,7 @@ impl PyVerifier {
         let msg_fe = message_from_bytes(message)?;
         let pks: Vec<XmssPublicKey> = pub_keys.iter().map(|p| (*p.inner).clone()).collect();
         let agg_inner = agg.inner.clone();
-        py.allow_threads(|| xmss_verify_aggregation(&pks, &agg_inner, &msg_fe, slot)).map_err(
+        py.detach(|| xmss_verify_aggregation(&pks, &agg_inner, &msg_fe, slot)).map_err(
             |e| VerifyError::new_err(format!("aggregated signature verification failed: {:?}", e)),
         )?;
         Ok(())
