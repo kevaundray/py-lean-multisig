@@ -51,13 +51,6 @@ verifier.verify(sorted_pks, msg, agg, slot)
 agg2 = lm.AggregatedSignature.from_bytes(agg.to_bytes())
 ```
 
-## API (summary)
-
-- Functions: `keygen(seed, slot_start, slot_end)`, `sign(sk, message, slot, *, rng_seed=None)`, `verify(pk, message, sig, slot)`
-- Types: `PublicKey`, `Signature`, `SecretKey` (not serializable), `AggregatedSignature`
-- Classes: `Prover(log_inv_rate=2)` (range `MIN_LOG_INV_RATE..=MAX_LOG_INV_RATE`), `Verifier()`
-- Errors: all raise subclasses of `LeanMultisigError` (`KeygenError`, `SignError`, `VerifyError`, `AggregationError`, `SerializationError`)
-
 ## Development
 
 Uses [`uv`](https://github.com/astral-sh/uv) for venv + dependency
