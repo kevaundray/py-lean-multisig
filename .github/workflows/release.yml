@@ -5,10 +5,6 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: py-lean-multisig
-
 permissions:
   contents: read
 
@@ -36,7 +32,6 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          working-directory: py-lean-multisig
           target: ${{ matrix.platform.target }}
           command: build
           args: --release --out dist
@@ -46,7 +41,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
-          path: py-lean-multisig/dist/*.whl
+          path: dist/*.whl
 
   publish:
     name: Publish to PyPI

@@ -64,8 +64,6 @@ Uses [`uv`](https://github.com/astral-sh/uv) for venv + dependency
 management
 
 ```bash
-cd py-lean-multisig
-
 # One-time setup: create the venv, install maturin + dev deps, build
 # and editable-install the extension.
 uv venv
