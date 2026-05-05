@@ -15,7 +15,6 @@ fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::PyPublicKey>()?;
     m.add_class::<types::PySignature>()?;
     m.add_class::<types::PySecretKey>()?;
-    m.add_class::<types::PyAggregatedSignature>()?;
     m.add_function(wrap_pyfunction!(primitives::keygen, m)?)?;
     m.add_function(wrap_pyfunction!(primitives::sign, m)?)?;
     m.add_function(wrap_pyfunction!(primitives::verify, m)?)?;
