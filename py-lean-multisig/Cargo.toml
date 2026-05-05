@@ -12,12 +12,8 @@ crate-type = ["cdylib"]
 # pyo3/extension-module is enabled by maturin via [tool.maturin].features
 # in pyproject.toml. Keeping it out of the dependency line lets cargo
 # build/check work normally without the extension-module link rules.
-pyo3 = { version = "0.27" }
+pyo3 = { version = "0.28.3" }
 
-# Deps point at upstream leanEthereum/leanMultisig. The [patch] block
-# below redirects them to a fork that adds the rust-embed fix to
-# rec_aggregation's compile entry-point. Once that fix is merged
-# upstream, delete the [patch] block — these deps stay as-is.
 xmss            = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
 backend         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
 rec_aggregation = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
