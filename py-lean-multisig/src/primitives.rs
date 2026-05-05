@@ -5,10 +5,9 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use xmss::{xmss_key_gen, xmss_sign, xmss_verify, XmssKeyGenError, XmssSignatureError, XmssVerifyError};
 
-use crate::conv::message_from_bytes;
 use crate::error::{KeygenError, SerializationError, SignError, VerifyError};
 use crate::panic::catch;
-use crate::types::{PyPublicKey, PySecretKey, PySignature};
+use crate::types::{message_from_bytes, PyPublicKey, PySecretKey, PySignature};
 
 #[pyfunction]
 pub fn keygen(seed: &[u8], slot_start: u32, slot_end: u32) -> PyResult<(PySecretKey, PyPublicKey)> {

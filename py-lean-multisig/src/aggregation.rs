@@ -8,10 +8,9 @@ use rec_aggregation::{
 };
 use xmss::{XmssPublicKey, XmssSignature};
 
-use crate::conv::message_from_bytes;
 use crate::error::{AggregationError, VerifyError};
 use crate::panic::catch;
-use crate::types::{PyAggregatedSignature, PyPublicKey, PySignature};
+use crate::types::{message_from_bytes, PyAggregatedSignature, PyPublicKey, PySignature};
 
 #[pyclass(name = "Prover", module = "py_lean_multisig")]
 pub struct PyProver {

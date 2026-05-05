@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 
 mod aggregation;
-mod conv;
 mod error;
 mod panic;
 mod primitives;
