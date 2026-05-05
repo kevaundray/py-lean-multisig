@@ -25,6 +25,7 @@ lean_prover     = { git = "https://github.com/leanEthereum/leanMultisig.git", re
 utils           = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "0b06b0e5107b8b40419ab5143faa29f37345047d" }
 
 ethereum_ssz = "0.10"
+hex          = "0.4"
 serde        = { version = "1", features = ["derive"] }
 postcard     = { version = "1", features = ["alloc"] }
 rand         = "0.8"
