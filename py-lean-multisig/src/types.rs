@@ -5,8 +5,10 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 use pyo3::types::PyBytes;
+use rec_aggregation::AggregatedXMSS;
 use xmss::{XmssPublicKey, XmssSecretKey, XmssSignature};
 
+use crate::error::SerializationError;
 use crate::ssz::{pubkey_from_ssz, pubkey_to_ssz, signature_from_ssz, signature_to_ssz};
 
 fn short_hex(bytes: &[u8]) -> String {
@@ -140,5 +142,47 @@ impl PySecretKey {
             self.slot_end,
             short_hex(&pubkey_to_ssz(&self.pk.inner))
         )
+    }
+}
+
+// AggregatedSignature exposes both the native (postcard+lz4) bytes form,
+// which is what the prover/verifier round-trip uses internally, and an SSZ
+// form that wraps the same payload as a variable-length container (no
+// separate framing — the SSZ container's content IS the native bytes per
+// the consensus-layer agreement). Both surfaces map to the same backing data.
+#[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig")]
+#[derive(Clone)]
+pub struct PyAggregatedSignature {
+    pub inner: Arc<AggregatedXMSS>,
+}
+
+#[pymethods]
+impl PyAggregatedSignature {
+    #[classmethod]
+    fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
+        let agg = AggregatedXMSS::deserialize(data).ok_or_else(|| {
+            SerializationError::new_err(
+                "failed to decode AggregatedSignature (postcard+lz4 deserialization failed)",
+            )
+        })?;
+        Ok(Self { inner: Arc::new(agg) })
+    }
+
+    fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &self.inner.serialize())
+    }
+
+    #[classmethod]
+    fn from_ssz(cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
+        Self::from_bytes(cls, data)
+    }
+
+    fn to_ssz<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        self.to_bytes(py)
+    }
+
+    fn __repr__(&self) -> String {
+        let bytes = self.inner.serialize();
+        format!("AggregatedSignature({} bytes, {})", bytes.len(), short_hex(&bytes))
     }
 }

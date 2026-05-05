@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use xmss as _;
-use rec_aggregation as _;
 
 mod conv;
 mod error;
@@ -15,5 +14,6 @@ fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::PyPublicKey>()?;
     m.add_class::<types::PySignature>()?;
     m.add_class::<types::PySecretKey>()?;
+    m.add_class::<types::PyAggregatedSignature>()?;
     Ok(())
 }
