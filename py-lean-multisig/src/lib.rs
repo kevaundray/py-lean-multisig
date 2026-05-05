@@ -1,9 +1,10 @@
 use pyo3::prelude::*;
-use xmss as _;
+use pyo3::wrap_pyfunction;
 
 mod conv;
 mod error;
 mod panic;
+mod primitives;
 mod ssz;
 mod types;
 
@@ -15,5 +16,6 @@ fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::PySignature>()?;
     m.add_class::<types::PySecretKey>()?;
     m.add_class::<types::PyAggregatedSignature>()?;
+    m.add_function(wrap_pyfunction!(primitives::keygen, m)?)?;
     Ok(())
 }
