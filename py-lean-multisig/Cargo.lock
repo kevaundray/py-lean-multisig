@@ -44,6 +44,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 [[package]]
 name = "backend"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "mt-air",
  "mt-fiat-shamir",
@@ -406,6 +407,7 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 [[package]]
 name = "lean_compiler"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "lean_vm",
@@ -421,6 +423,7 @@ dependencies = [
 [[package]]
 name = "lean_prover"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "itertools",
@@ -438,6 +441,7 @@ dependencies = [
 [[package]]
 name = "lean_vm"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "itertools",
@@ -512,6 +516,7 @@ dependencies = [
 [[package]]
 name = "mt-air"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "mt-field",
  "mt-poly",
@@ -520,6 +525,7 @@ dependencies = [
 [[package]]
 name = "mt-fiat-shamir"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "mt-field",
  "mt-koala-bear",
@@ -533,6 +539,7 @@ dependencies = [
 [[package]]
 name = "mt-field"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "itertools",
  "mt-utils",
@@ -547,6 +554,7 @@ dependencies = [
 [[package]]
 name = "mt-koala-bear"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "itertools",
  "mt-field",
@@ -562,6 +570,7 @@ dependencies = [
 [[package]]
 name = "mt-poly"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "itertools",
  "mt-field",
@@ -575,6 +584,7 @@ dependencies = [
 [[package]]
 name = "mt-sumcheck"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "mt-air",
  "mt-fiat-shamir",
@@ -587,6 +597,7 @@ dependencies = [
 [[package]]
 name = "mt-symetric"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "mt-field",
  "mt-koala-bear",
@@ -596,6 +607,7 @@ dependencies = [
 [[package]]
 name = "mt-utils"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "serde",
 ]
@@ -603,6 +615,7 @@ dependencies = [
 [[package]]
 name = "mt-whir"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "itertools",
  "mt-fiat-shamir",
@@ -909,6 +922,7 @@ dependencies = [
 [[package]]
 name = "rec_aggregation"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "lean_compiler",
@@ -1113,6 +1127,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 [[package]]
 name = "sub_protocols"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "lean_vm",
@@ -1134,6 +1149,7 @@ dependencies = [
 [[package]]
 name = "system-info"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "libc",
  "rayon",
@@ -1287,6 +1303,7 @@ checksum = "7264e107f553ccae879d21fbea1d6724ac785e8c3bfc762137959b5802826ef3"
 [[package]]
 name = "utils"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "tracing",
@@ -1511,6 +1528,7 @@ dependencies = [
 [[package]]
 name = "xmss"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "backend",
  "lz4_flex",
@@ -1524,6 +1542,7 @@ dependencies = [
 [[package]]
 name = "zk-alloc"
 version = "0.1.0"
+source = "git+https://github.com/kevaundray/leanMultisig.git?branch=kw%2Frust-embed-src-code#350e5b08ef71c1dcb874ccaea9c4e8091113ddc7"
 dependencies = [
  "libc",
  "system-info",

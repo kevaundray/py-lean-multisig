@@ -1,9 +1,4 @@
 """Type stubs for py_lean_multisig.
-
-Hand-written, kept in lockstep with the Rust extension.
-`tests/test_stubs.py` runs `mypy.stubtest` to verify the stub matches
-the runtime module — symbol presence, signatures, and parameter
-positionality.
 """
 
 from typing import final
