@@ -64,7 +64,7 @@ fn decode<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8], type_name: &str) -> Py
     })
 }
 
-#[pyclass(name = "PublicKey", frozen, module = "py_lean_multisig")]
+#[pyclass(name = "PublicKey", frozen, module = "py_lean_multisig", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyPublicKey {
     pub(crate) inner: Arc<XmssPublicKey>,
@@ -103,7 +103,7 @@ impl PyPublicKey {
     }
 }
 
-#[pyclass(name = "Signature", frozen, module = "py_lean_multisig")]
+#[pyclass(name = "Signature", frozen, module = "py_lean_multisig", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PySignature {
     pub(crate) inner: Arc<XmssSignature>,
@@ -184,7 +184,7 @@ impl PySecretKey {
 
 /// Aggregated XMSS signature — wraps `rec_aggregation::AggregatedXMSS`.
 /// Wire format is upstream's native postcard+lz4.
-#[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig")]
+#[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyAggregatedSignature {
     pub(crate) inner: Arc<AggregatedXMSS>,
