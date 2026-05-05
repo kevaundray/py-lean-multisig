@@ -61,3 +61,55 @@ def test_pubkey_from_ssz_high_bit_set_raises():
     bad = b"\xff" * 4 + b"\x00" * 28  # first u32 has high bit set
     with pytest.raises(lm.SerializationError):
         lm.PublicKey.from_ssz(bad)
+
+
+def test_sign_returns_typed_signature():
+    sk, _ = lm.keygen(b"\x00" * 32, 0, 7)
+    sig = lm.sign(sk, b"\x11" * 32, 3, rng_seed=b"\x99" * 32)
+    assert isinstance(sig, lm.Signature)
+
+
+def test_sign_deterministic_with_rng_seed():
+    sk, _ = lm.keygen(b"\x00" * 32, 0, 7)
+    msg = b"\x11" * 32
+    sig_a = lm.sign(sk, msg, 3, rng_seed=b"\x99" * 32)
+    sig_b = lm.sign(sk, msg, 3, rng_seed=b"\x99" * 32)
+    assert sig_a == sig_b
+    assert sig_a.to_ssz() == sig_b.to_ssz()
+
+
+def test_sign_slot_out_of_range_raises():
+    sk, _ = lm.keygen(b"\x00" * 32, 5, 9)
+    with pytest.raises(lm.SignError):
+        lm.sign(sk, b"\x00" * 32, 0, rng_seed=b"\x01" * 32)
+    with pytest.raises(lm.SignError):
+        lm.sign(sk, b"\x00" * 32, 10, rng_seed=b"\x01" * 32)
+
+
+def test_sign_short_message_raises_serialization_error():
+    sk, _ = lm.keygen(b"\x00" * 32, 0, 7)
+    with pytest.raises(lm.SerializationError):
+        lm.sign(sk, b"\x00" * 31, 0, rng_seed=b"\x01" * 32)
+
+
+def test_sign_high_bit_set_message_raises():
+    sk, _ = lm.keygen(b"\x00" * 32, 0, 7)
+    bad = b"\xff" * 4 + b"\x00" * 28
+    with pytest.raises(lm.SerializationError):
+        lm.sign(sk, bad, 0, rng_seed=b"\x01" * 32)
+
+
+def test_sign_short_rng_seed_raises():
+    sk, _ = lm.keygen(b"\x00" * 32, 0, 7)
+    with pytest.raises(lm.SerializationError):
+        lm.sign(sk, b"\x00" * 32, 0, rng_seed=b"short")
+
+
+def test_signature_ssz_round_trip():
+    sk, _ = lm.keygen(b"\x07" * 32, 0, 7)
+    sig = lm.sign(sk, b"\x22" * 32, 5, rng_seed=b"\xaa" * 32)
+    raw = sig.to_ssz()
+    assert isinstance(raw, bytes)
+    assert len(raw) == 1208  # WOTS (696) + Merkle proof (512)
+    sig2 = lm.Signature.from_ssz(raw)
+    assert sig == sig2

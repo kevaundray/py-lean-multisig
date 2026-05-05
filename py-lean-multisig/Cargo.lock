@@ -1625,7 +1625,7 @@ dependencies = [
  "lean_vm",
  "postcard",
  "pyo3",
- "rand 0.8.6",
+ "rand 0.10.1",
  "rec_aggregation",
  "serde",
  "sha3 0.10.9",
