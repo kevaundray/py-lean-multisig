@@ -10,8 +10,6 @@ mod types;
 #[pymodule]
 fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    // Re-export upstream's WHIR rate bounds as module constants so callers
-    // can reference them instead of memorizing the magic numbers.
     m.add("MIN_LOG_INV_RATE", MIN_WHIR_LOG_INV_RATE)?;
     m.add("MAX_LOG_INV_RATE", MAX_WHIR_LOG_INV_RATE)?;
     error::register(py, m)?;

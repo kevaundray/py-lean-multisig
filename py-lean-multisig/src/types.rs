@@ -51,9 +51,6 @@ fn short_hex(bytes: &[u8]) -> String {
     }
 }
 
-/// postcard helpers: piggyback on upstream's serde derives so we don't carry
-/// a hand-rolled byte-layout codec. Wire format is whatever postcard
-/// produces, not consensus-layer SSZ.
 fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
     postcard::to_allocvec(value).expect("postcard serialization is infallible for these types")
 }
@@ -182,8 +179,6 @@ impl PySecretKey {
     }
 }
 
-/// Aggregated XMSS signature — wraps `rec_aggregation::AggregatedXMSS`.
-/// Wire format is upstream's native postcard+lz4.
 #[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyAggregatedSignature {
