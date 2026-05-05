@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: py-lean-multisig
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.platform.runner }} / ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+          - runner: ubuntu-latest
+            target: aarch64
+          - runner: macos-14
+            target: aarch64
+          - runner: macos-13
+            target: x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: py-lean-multisig
+          target: ${{ matrix.platform.target }}
+          command: build
+          args: --release --out dist
+          # manylinux: auto picks the right manylinux container per target
+          manylinux: auto
+          sccache: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
+          path: py-lean-multisig/dist/*.whl
+
+  publish:
+    name: Publish to PyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    # PyPI Trusted Publishing — set up at
+    # https://pypi.org/manage/project/py-lean-multisig/settings/publishing/
+    # with publisher = github action, repo = this repo, workflow = release.yml,
+    # environment = pypi
+    environment:
+      name: pypi
+      url: https://pypi.org/p/py-lean-multisig
+    permissions:
+      id-token: write
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

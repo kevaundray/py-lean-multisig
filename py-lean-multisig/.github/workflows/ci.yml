@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+defaults:
+  run:
+    working-directory: py-lean-multisig
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / py${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, macos-13]
+        python: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # rust-toolchain.toml pins channel 1.94; this action installs whatever
+      # the file says.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: py-lean-multisig
+
+      - name: Install Python deps
+        run: pip install maturin pytest mypy
+
+      - name: Build extension (release)
+        run: maturin develop --release
+
+      - name: Run tests
+        run: pytest -v
