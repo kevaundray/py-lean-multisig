@@ -24,7 +24,6 @@ pub fn keygen(seed: &[u8], slot_start: u32, slot_end: u32) -> PyResult<(PySecret
         inner: Arc::new(sk),
         slot_start,
         slot_end,
-        pk: py_pk.clone(),
     };
     Ok((py_sk, py_pk))
 }

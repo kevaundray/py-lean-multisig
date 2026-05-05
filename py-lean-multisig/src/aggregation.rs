@@ -36,6 +36,7 @@ impl PyProver {
     #[pyo3(signature = (pub_keys, signatures, message, slot, *, children=None))]
     fn aggregate(
         &self,
+        py: Python<'_>,
         pub_keys: Vec<PyRef<'_, PyPublicKey>>,
         signatures: Vec<PyRef<'_, PySignature>>,
         message: &[u8],
@@ -57,14 +58,17 @@ impl PyProver {
             .map(|(p, s)| ((*p.inner).clone(), (*s.inner).clone()))
             .collect();
 
+        // Single materialization: collect each child's owned (Vec<XmssPublicKey>,
+        // AggregatedXMSS), then build the borrow-shaped tuple upstream wants
+        // from the same allocation. The inner AggregatedXMSS still has to be
+        // cloned per call — upstream takes it by value.
         let children_owned: Vec<(Vec<XmssPublicKey>, AggregatedXMSS)> = children
             .unwrap_or_default()
             .into_iter()
             .map(|(child_pks, child_agg)| {
                 let pks: Vec<XmssPublicKey> =
                     child_pks.iter().map(|p| (*p.inner).clone()).collect();
-                let agg = (*child_agg.inner).clone();
-                (pks, agg)
+                (pks, (*child_agg.inner).clone())
             })
             .collect();
         let children_refs: Vec<(&[XmssPublicKey], AggregatedXMSS)> = children_owned
@@ -72,11 +76,12 @@ impl PyProver {
             .map(|(p, a)| (p.as_slice(), a.clone()))
             .collect();
 
-        let (pks_out, agg) =
-            xmss_aggregate(&children_refs, raw_xmss, &msg_fe, slot, self.log_inv_rate)
-                .map_err(|e| {
-                    AggregationError::new_err(format!("aggregation failed: {:?}", e))
-                })?;
+        let log_inv_rate = self.log_inv_rate;
+        let (pks_out, agg) = py
+            .allow_threads(|| {
+                xmss_aggregate(&children_refs, raw_xmss, &msg_fe, slot, log_inv_rate)
+            })
+            .map_err(|e| AggregationError::new_err(format!("aggregation failed: {:?}", e)))?;
         let py_pks: Vec<PyPublicKey> = pks_out
             .into_iter()
             .map(|pk| PyPublicKey { inner: Arc::new(pk) })
@@ -103,6 +108,7 @@ impl PyVerifier {
 
     fn verify(
         &self,
+        py: Python<'_>,
         pub_keys: Vec<PyRef<'_, PyPublicKey>>,
         message: &[u8],
         agg: &PyAggregatedSignature,
@@ -110,12 +116,10 @@ impl PyVerifier {
     ) -> PyResult<()> {
         let msg_fe = message_from_bytes(message)?;
         let pks: Vec<XmssPublicKey> = pub_keys.iter().map(|p| (*p.inner).clone()).collect();
-        xmss_verify_aggregation(&pks, &agg.inner, &msg_fe, slot).map_err(|e| {
-            VerifyError::new_err(format!(
-                "aggregated signature verification failed: {:?}",
-                e
-            ))
-        })?;
+        let agg_inner = agg.inner.clone();
+        py.allow_threads(|| xmss_verify_aggregation(&pks, &agg_inner, &msg_fe, slot)).map_err(
+            |e| VerifyError::new_err(format!("aggregated signature verification failed: {:?}", e)),
+        )?;
         Ok(())
     }
 }

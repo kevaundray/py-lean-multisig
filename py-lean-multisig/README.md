@@ -135,7 +135,9 @@ All wrapper exceptions inherit from `LeanMultisigError`:
 - `SignError` — slot out of the secret key's range.
 - `VerifyError` — signature failed WOTS recovery, Merkle path check, or
   aggregated-signature verification.
-- `AggregationError` — prover failure or panic during `Prover.aggregate`.
+- `AggregationError` — prover failure during `Prover.aggregate`. (Internal
+  upstream `assert!` panics surface as `pyo3.panic.PanicException` rather
+  than `AggregationError` — PyO3's default panic translation.)
 - `SerializationError` — wrong-length input bytes, malformed SSZ, or a
   KoalaBear field element with the high bit set.
 - (`SerializationError` does **not** inherit from `ValueError` — by design.

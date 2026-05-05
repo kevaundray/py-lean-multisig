@@ -17,7 +17,7 @@ const _: () = assert!(MESSAGE_BYTES == 32);
 /// Convert 32 bytes (8 little-endian u32s, each high bit clear) into the
 /// `[KoalaBear; 8]` upstream wants for messages. Returns `SerializationError`
 /// on wrong length or any value outside KoalaBear (high bit set).
-pub fn message_from_bytes(bytes: &[u8]) -> PyResult<[KoalaBear; MESSAGE_LEN_FE]> {
+pub(crate) fn message_from_bytes(bytes: &[u8]) -> PyResult<[KoalaBear; MESSAGE_LEN_FE]> {
     if bytes.len() != MESSAGE_BYTES {
         return Err(SerializationError::new_err(format!(
             "message must be exactly {} bytes, got {}",
@@ -51,12 +51,9 @@ fn short_hex(bytes: &[u8]) -> String {
     }
 }
 
-/// Serialize any upstream serde-derived type via postcard. We piggyback
-/// on upstream's `Serialize`/`Deserialize` derives instead of carrying a
-/// hand-written byte-layout codec; the wire format is whatever postcard
-/// produces, not consensus-layer SSZ. AggregatedSignature uses upstream's
-/// own postcard+lz4 helpers (it has compression baked in) — these helpers
-/// are for the smaller, uncompressed PublicKey/Signature.
+/// postcard helpers: piggyback on upstream's serde derives so we don't carry
+/// a hand-rolled byte-layout codec. Wire format is whatever postcard
+/// produces, not consensus-layer SSZ.
 fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
     postcard::to_allocvec(value).expect("postcard serialization is infallible for these types")
 }
@@ -70,19 +67,17 @@ fn decode<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8], type_name: &str) -> Py
 #[pyclass(name = "PublicKey", frozen, module = "py_lean_multisig")]
 #[derive(Clone)]
 pub struct PyPublicKey {
-    pub inner: Arc<XmssPublicKey>,
+    pub(crate) inner: Arc<XmssPublicKey>,
 }
 
 #[pymethods]
 impl PyPublicKey {
-    /// Decode from postcard-encoded bytes (matches `to_bytes`).
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
         let pk: XmssPublicKey = decode(data, "PublicKey")?;
         Ok(Self { inner: Arc::new(pk) })
     }
 
-    /// Encode to postcard-format bytes (round-trips with `from_bytes`).
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &encode(&*self.inner))
     }
@@ -92,11 +87,9 @@ impl PyPublicKey {
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
-        let eq = self.inner.merkle_root == other.inner.merkle_root
-            && self.inner.public_param == other.inner.public_param;
         match op {
-            CompareOp::Eq => Ok(eq),
-            CompareOp::Ne => Ok(!eq),
+            CompareOp::Eq => Ok(self.inner == other.inner),
+            CompareOp::Ne => Ok(self.inner != other.inner),
             _ => Err(pyo3::exceptions::PyTypeError::new_err(
                 "PublicKey only supports == and !=",
             )),
@@ -105,7 +98,7 @@ impl PyPublicKey {
 
     fn __hash__(&self) -> u64 {
         let mut h = DefaultHasher::new();
-        encode(&*self.inner).hash(&mut h);
+        self.inner.hash(&mut h);
         h.finish()
     }
 }
@@ -113,19 +106,17 @@ impl PyPublicKey {
 #[pyclass(name = "Signature", frozen, module = "py_lean_multisig")]
 #[derive(Clone)]
 pub struct PySignature {
-    pub inner: Arc<XmssSignature>,
+    pub(crate) inner: Arc<XmssSignature>,
 }
 
 #[pymethods]
 impl PySignature {
-    /// Decode from postcard-encoded bytes (matches `to_bytes`).
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
         let sig: XmssSignature = decode(data, "Signature")?;
         Ok(Self { inner: Arc::new(sig) })
     }
 
-    /// Encode to postcard-format bytes (round-trips with `from_bytes`).
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &encode(&*self.inner))
     }
@@ -146,31 +137,28 @@ impl PySignature {
 
     fn __hash__(&self) -> u64 {
         let mut h = DefaultHasher::new();
-        encode(&*self.inner).hash(&mut h);
+        self.inner.hash(&mut h);
         h.finish()
     }
 }
 
-// SecretKey isn't serializable because upstream doesn't expose a way to
-// serialize XmssSecretKey: it derives only Debug, has no to_bytes/from_bytes
-// API, and all five fields are pub(crate) so we can't build our own encoder
-// from outside the crate. To re-derive a key across processes, persist the
-// (seed, slot_start, slot_end) triple and call keygen() again — it's
-// deterministic. We capture slot_start/slot_end on this wrapper at keygen
-// time since the upstream fields aren't reachable from here either.
+// SecretKey isn't serializable: upstream's XmssSecretKey derives only Debug
+// and its fields are pub(crate), so we can't build an encoder. Re-derive
+// across processes by persisting (seed, slot_start, slot_end) and calling
+// keygen() — it's deterministic. slot_start/slot_end are cached here
+// because upstream doesn't expose them.
 #[pyclass(name = "SecretKey", frozen, module = "py_lean_multisig")]
 pub struct PySecretKey {
-    pub inner: Arc<XmssSecretKey>,
-    pub slot_start: u32,
-    pub slot_end: u32,
-    pub pk: PyPublicKey,
+    pub(crate) inner: Arc<XmssSecretKey>,
+    pub(crate) slot_start: u32,
+    pub(crate) slot_end: u32,
 }
 
 #[pymethods]
 impl PySecretKey {
     #[getter]
     fn public_key(&self) -> PyPublicKey {
-        self.pk.clone()
+        PyPublicKey { inner: Arc::new(self.inner.public_key()) }
     }
 
     #[getter]
@@ -184,24 +172,22 @@ impl PySecretKey {
     }
 
     fn __repr__(&self) -> String {
+        let pk_bytes = encode(&self.inner.public_key());
         format!(
             "SecretKey(slots={}..={}, pk={})",
             self.slot_start,
             self.slot_end,
-            short_hex(&encode(&*self.pk.inner))
+            short_hex(&pk_bytes)
         )
     }
 }
 
 /// Aggregated XMSS signature — wraps `rec_aggregation::AggregatedXMSS`.
-/// Wire format is upstream's native postcard+lz4. The consensus-layer SSZ
-/// container is currently the same byte payload (no extra framing); if
-/// upstream ever introduces real framing, a separate accessor will be
-/// added rather than overloading `to_bytes`.
+/// Wire format is upstream's native postcard+lz4.
 #[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig")]
 #[derive(Clone)]
 pub struct PyAggregatedSignature {
-    pub inner: Arc<AggregatedXMSS>,
+    pub(crate) inner: Arc<AggregatedXMSS>,
 }
 
 #[pymethods]
@@ -229,4 +215,3 @@ impl PyAggregatedSignature {
         )
     }
 }
-
