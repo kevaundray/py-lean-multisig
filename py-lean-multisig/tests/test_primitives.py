@@ -17,7 +17,7 @@ def test_keygen_deterministic_for_same_seed():
     _, pk1 = lm.keygen(seed, 0, 0)
     _, pk2 = lm.keygen(seed, 0, 0)
     assert pk1 == pk2
-    assert pk1.to_ssz() == pk2.to_ssz()
+    assert pk1.to_bytes() == pk2.to_bytes()
 
 
 def test_keygen_different_seed_yields_different_pubkey():
@@ -41,26 +41,26 @@ def test_keygen_invalid_range_raises_keygen_error():
         lm.keygen(b"\x00" * 32, 8, 0)
 
 
-def test_pubkey_ssz_round_trip():
+def test_pubkey_bytes_round_trip():
     _, pk = lm.keygen(b"\x07" * 32, 0, 7)
-    raw = pk.to_ssz()
+    raw = pk.to_bytes()
     assert isinstance(raw, bytes)
     assert len(raw) == 32  # 8 KoalaBear field elements × 4 bytes
-    pk2 = lm.PublicKey.from_ssz(raw)
+    pk2 = lm.PublicKey.from_bytes(raw)
     assert pk == pk2
     assert hash(pk) == hash(pk2)
     assert "PublicKey" in repr(pk)
 
 
-def test_pubkey_from_ssz_wrong_length_raises():
+def test_pubkey_from_bytes_wrong_length_raises():
     with pytest.raises(lm.SerializationError):
-        lm.PublicKey.from_ssz(b"\x00" * 31)
+        lm.PublicKey.from_bytes(b"\x00" * 31)
 
 
-def test_pubkey_from_ssz_high_bit_set_raises():
+def test_pubkey_from_bytes_high_bit_set_raises():
     bad = b"\xff" * 4 + b"\x00" * 28  # first u32 has high bit set
     with pytest.raises(lm.SerializationError):
-        lm.PublicKey.from_ssz(bad)
+        lm.PublicKey.from_bytes(bad)
 
 
 def test_sign_returns_typed_signature():
@@ -75,7 +75,7 @@ def test_sign_deterministic_with_rng_seed():
     sig_a = lm.sign(sk, msg, 3, rng_seed=b"\x99" * 32)
     sig_b = lm.sign(sk, msg, 3, rng_seed=b"\x99" * 32)
     assert sig_a == sig_b
-    assert sig_a.to_ssz() == sig_b.to_ssz()
+    assert sig_a.to_bytes() == sig_b.to_bytes()
 
 
 def test_sign_slot_out_of_range_raises():
@@ -105,13 +105,13 @@ def test_sign_short_rng_seed_raises():
         lm.sign(sk, b"\x00" * 32, 0, rng_seed=b"short")
 
 
-def test_signature_ssz_round_trip():
+def test_signature_bytes_round_trip():
     sk, _ = lm.keygen(b"\x07" * 32, 0, 7)
     sig = lm.sign(sk, b"\x22" * 32, 5, rng_seed=b"\xaa" * 32)
-    raw = sig.to_ssz()
+    raw = sig.to_bytes()
     assert isinstance(raw, bytes)
     assert len(raw) == 1208  # WOTS (696) + Merkle proof (512)
-    sig2 = lm.Signature.from_ssz(raw)
+    sig2 = lm.Signature.from_bytes(raw)
     assert sig == sig2
 
 
@@ -152,11 +152,11 @@ def test_verify_short_message_raises_serialization_error():
         lm.verify(pk, b"\x22" * 31, sig, 5)
 
 
-def test_verify_after_ssz_roundtrip():
-    """Signature/PublicKey round-tripped through SSZ should still verify."""
+def test_verify_after_bytes_roundtrip():
+    """Signature/PublicKey round-tripped through bytes should still verify."""
     sk, pk = lm.keygen(b"\x00" * 32, 0, 7)
     msg = b"\x22" * 32
     sig = lm.sign(sk, msg, 5, rng_seed=b"\x01" * 32)
-    pk2 = lm.PublicKey.from_ssz(pk.to_ssz())
-    sig2 = lm.Signature.from_ssz(sig.to_ssz())
+    pk2 = lm.PublicKey.from_bytes(pk.to_bytes())
+    sig2 = lm.Signature.from_bytes(sig.to_bytes())
     assert lm.verify(pk2, msg, sig2, 5) is None

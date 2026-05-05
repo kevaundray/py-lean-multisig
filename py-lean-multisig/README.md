@@ -35,11 +35,12 @@ signature = lm.sign(sk, message, slot=5, rng_seed=b"\x99" * 32)
 # Verify — raises lm.VerifyError on failure, returns None on success.
 lm.verify(pk, message, signature, slot=5)
 
-# SSZ wire format — pubkey is 32 bytes, signature is 1208 bytes (fixed).
-pk_bytes = pk.to_ssz()
-sig_bytes = signature.to_ssz()
-pk2 = lm.PublicKey.from_ssz(pk_bytes)
-sig2 = lm.Signature.from_ssz(sig_bytes)
+# Wire format — pubkey is 32 bytes, signature is 1208 bytes (both fixed,
+# SSZ flat encoding under the hood).
+pk_bytes = pk.to_bytes()
+sig_bytes = signature.to_bytes()
+pk2 = lm.PublicKey.from_bytes(pk_bytes)
+sig2 = lm.Signature.from_bytes(sig_bytes)
 assert pk == pk2 and signature == sig2
 ```
 
@@ -69,8 +70,9 @@ sorted_pks, agg = prover.aggregate(pks, sigs, message, slot)
 
 verifier.verify(sorted_pks, message, agg, slot)   # raises VerifyError on failure
 
-# AggregatedSignature serializes via to_bytes/from_bytes (postcard+lz4)
-# or to_ssz/from_ssz (currently the same byte payload).
+# AggregatedSignature serializes via to_bytes/from_bytes
+# (upstream's native postcard+lz4 form, which the consensus-layer SSZ
+# container currently wraps verbatim).
 wire = agg.to_bytes()
 agg2 = lm.AggregatedSignature.from_bytes(wire)
 ```
@@ -91,17 +93,19 @@ agg2 = lm.AggregatedSignature.from_bytes(wire)
 
 ### Types
 
-- `PublicKey` — 32 bytes SSZ. Hashable, equatable, has `to_ssz()` /
-  `from_ssz()` classmethod. Carries the Merkle root and the public param.
-- `Signature` — 1208 bytes SSZ (696 bytes WOTS + 512 bytes Merkle proof).
-  Hashable, equatable, same SSZ surface.
+- `PublicKey` — 32-byte canonical wire form (SSZ flat encoding under the
+  hood). Hashable, equatable, has `to_bytes()` / `from_bytes()`
+  classmethod. Carries the Merkle root and the public param.
+- `Signature` — 1208-byte canonical wire form (696 bytes WOTS + 512 bytes
+  Merkle proof). Hashable, equatable, same `to_bytes()` / `from_bytes()`
+  surface.
 - `SecretKey` — **deliberately not serializable** (persisting one-time-use
   signing material is a footgun). Exposes `public_key`, `slot_start`,
   `slot_end` as properties.
 - `AggregatedSignature` — variable-length zkVM SNARK proof. Round-trips
-  through `to_bytes()` / `from_bytes()` (native postcard+lz4) and
-  `to_ssz()` / `from_ssz()` (consensus-layer container — currently
-  byte-identical to native).
+  through `to_bytes()` / `from_bytes()` (upstream's native postcard+lz4
+  form; the consensus-layer SSZ container currently wraps the same
+  payload verbatim).
 
 ### Aggregation classes
 

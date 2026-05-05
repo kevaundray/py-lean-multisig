@@ -58,7 +58,7 @@ def test_aggregate_returns_sorted_pks(prover):
     # The order must match what verifier expects — i.e. sorted by upstream's
     # XmssPublicKey Ord, which we don't replicate in Python. Just check we
     # got back the same set.
-    assert set(p.to_ssz() for p in sorted_pks) == set(p.to_ssz() for p in pks)
+    assert set(p.to_bytes() for p in sorted_pks) == set(p.to_bytes() for p in pks)
 
 
 def test_aggregate_mismatched_lengths_raises_value_error(prover):
@@ -90,10 +90,6 @@ def test_aggregated_signature_round_trip(prover):
     assert len(raw) > 0
     agg2 = lm.AggregatedSignature.from_bytes(raw)
     assert agg.to_bytes() == agg2.to_bytes()
-    # ssz form is currently the same payload as native
-    assert agg.to_ssz() == raw
-    agg3 = lm.AggregatedSignature.from_ssz(raw)
-    assert agg.to_bytes() == agg3.to_bytes()
 
 
 def test_aggregated_signature_from_bytes_garbage_raises():

@@ -23,11 +23,11 @@ SAMPLE = textwrap.dedent(
     sig2: lm.Signature = lm.sign(sk, b"\\x00" * 32, 3, rng_seed=b"\\x01" * 32)
     lm.verify(pk, b"\\x00" * 32, sig, 3)
 
-    pk_bytes: bytes = pk.to_ssz()
-    pk2: lm.PublicKey = lm.PublicKey.from_ssz(pk_bytes)
+    pk_bytes: bytes = pk.to_bytes()
+    pk2: lm.PublicKey = lm.PublicKey.from_bytes(pk_bytes)
     assert pk == pk2
-    sig_bytes: bytes = sig.to_ssz()
-    sig3: lm.Signature = lm.Signature.from_ssz(sig_bytes)
+    sig_bytes: bytes = sig.to_bytes()
+    sig3: lm.Signature = lm.Signature.from_bytes(sig_bytes)
 
     start: int = sk.slot_start
     end: int = sk.slot_end
@@ -44,8 +44,8 @@ SAMPLE = textwrap.dedent(
     v.verify(sorted_pks, b"\\x00" * 32, agg, 3)
     raw: bytes = agg.to_bytes()
     agg2: lm.AggregatedSignature = lm.AggregatedSignature.from_bytes(raw)
-    ssz_bytes: bytes = agg2.to_ssz()
-    agg3: lm.AggregatedSignature = lm.AggregatedSignature.from_ssz(ssz_bytes)
+    ssz_bytes: bytes = agg2.to_bytes()
+    agg3: lm.AggregatedSignature = lm.AggregatedSignature.from_bytes(ssz_bytes)
 
     err_classes: tuple[type[lm.LeanMultisigError], ...] = (
         lm.KeygenError,

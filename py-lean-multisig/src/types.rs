@@ -31,14 +31,17 @@ pub struct PyPublicKey {
 
 #[pymethods]
 impl PyPublicKey {
+    /// Decode from the canonical 32-byte wire form (SSZ flat encoding —
+    /// 8 KoalaBear field elements as LE u32s, each high bit clear).
     #[classmethod]
-    fn from_ssz(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
+    fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
         Ok(Self {
             inner: Arc::new(pubkey_from_ssz(data)?),
         })
     }
 
-    fn to_ssz<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+    /// Encode to the canonical 32-byte wire form (SSZ flat encoding).
+    fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &pubkey_to_ssz(&self.inner))
     }
 
@@ -73,14 +76,16 @@ pub struct PySignature {
 
 #[pymethods]
 impl PySignature {
+    /// Decode from the canonical 1208-byte wire form (SSZ flat encoding).
     #[classmethod]
-    fn from_ssz(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
+    fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
         Ok(Self {
             inner: Arc::new(signature_from_ssz(data)?),
         })
     }
 
-    fn to_ssz<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+    /// Encode to the canonical 1208-byte wire form (SSZ flat encoding).
+    fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &signature_to_ssz(&self.inner))
     }
 
@@ -146,9 +151,10 @@ impl PySecretKey {
 }
 
 /// Aggregated XMSS signature — wraps `rec_aggregation::AggregatedXMSS`.
-/// `to_bytes`/`from_bytes` use upstream's native postcard+lz4 form;
-/// `to_ssz`/`from_ssz` are equivalent (the consensus-layer container has
-/// no extra framing beyond the native payload).
+/// Wire format is upstream's native postcard+lz4. The consensus-layer SSZ
+/// container is currently the same byte payload (no extra framing); if
+/// upstream ever introduces real framing, a separate accessor will be
+/// added rather than overloading `to_bytes`.
 #[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig")]
 #[derive(Clone)]
 pub struct PyAggregatedSignature {
@@ -169,15 +175,6 @@ impl PyAggregatedSignature {
 
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
         PyBytes::new(py, &self.inner.serialize())
-    }
-
-    #[classmethod]
-    fn from_ssz(cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        Self::from_bytes(cls, data)
-    }
-
-    fn to_ssz<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        self.to_bytes(py)
     }
 
     fn __repr__(&self) -> String {

@@ -10,8 +10,8 @@ Re-generate from Python with:
 
     sk, pk = py_lean_multisig.keygen(b"\\x00"*32, 0, 7)
     sig = py_lean_multisig.sign(sk, b"\\x42"*32, 5, rng_seed=b"\\x99"*32)
-    pk.to_ssz().hex()
-    hashlib.sha256(sig.to_ssz()).hexdigest()
+    pk.to_bytes().hex()
+    hashlib.sha256(sig.to_bytes()).hexdigest()
 """
 
 import hashlib
@@ -24,7 +24,7 @@ MESSAGE = b"\x42" * 32
 SIGN_SLOT = 5
 RNG_SEED = b"\x99" * 32
 
-EXPECTED_PUBKEY_SSZ_HEX = (
+EXPECTED_PUBKEY_HEX = (
     "8300a12d1f51bd13e0293a2a2dd955540e31c354335c863509c8f564a0d40f2a"
 )
 EXPECTED_PUBKEY_SHA256 = (
@@ -35,16 +35,16 @@ EXPECTED_SIGNATURE_SHA256 = (
 )
 
 
-def test_pubkey_ssz_is_stable():
+def test_pubkey_bytes_are_stable():
     _, pk = lm.keygen(SEED, *SLOT_RANGE)
-    assert pk.to_ssz().hex() == EXPECTED_PUBKEY_SSZ_HEX
-    assert hashlib.sha256(pk.to_ssz()).hexdigest() == EXPECTED_PUBKEY_SHA256
+    assert pk.to_bytes().hex() == EXPECTED_PUBKEY_HEX
+    assert hashlib.sha256(pk.to_bytes()).hexdigest() == EXPECTED_PUBKEY_SHA256
 
 
-def test_signature_ssz_is_stable():
+def test_signature_bytes_are_stable():
     sk, _ = lm.keygen(SEED, *SLOT_RANGE)
     sig = lm.sign(sk, MESSAGE, SIGN_SLOT, rng_seed=RNG_SEED)
-    assert hashlib.sha256(sig.to_ssz()).hexdigest() == EXPECTED_SIGNATURE_SHA256
+    assert hashlib.sha256(sig.to_bytes()).hexdigest() == EXPECTED_SIGNATURE_SHA256
 
 
 def test_full_cycle_with_stable_fixtures():
