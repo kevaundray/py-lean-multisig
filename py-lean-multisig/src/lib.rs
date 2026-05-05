@@ -6,7 +6,6 @@ mod conv;
 mod error;
 mod panic;
 mod primitives;
-mod ssz;
 mod types;
 
 #[pymodule]

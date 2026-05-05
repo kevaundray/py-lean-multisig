@@ -35,8 +35,8 @@ signature = lm.sign(sk, message, slot=5, rng_seed=b"\x99" * 32)
 # Verify — raises lm.VerifyError on failure, returns None on success.
 lm.verify(pk, message, signature, slot=5)
 
-# Wire format — pubkey is 32 bytes, signature is 1208 bytes (both fixed,
-# SSZ flat encoding under the hood).
+# Wire format — postcard via upstream's serde derives. Round-trips
+# through to_bytes() / from_bytes().
 pk_bytes = pk.to_bytes()
 sig_bytes = signature.to_bytes()
 pk2 = lm.PublicKey.from_bytes(pk_bytes)
@@ -93,19 +93,16 @@ agg2 = lm.AggregatedSignature.from_bytes(wire)
 
 ### Types
 
-- `PublicKey` — 32-byte canonical wire form (SSZ flat encoding under the
-  hood). Hashable, equatable, has `to_bytes()` / `from_bytes()`
-  classmethod. Carries the Merkle root and the public param.
-- `Signature` — 1208-byte canonical wire form (696 bytes WOTS + 512 bytes
-  Merkle proof). Hashable, equatable, same `to_bytes()` / `from_bytes()`
-  surface.
+- `PublicKey` — Merkle root + public param. Hashable, equatable,
+  `to_bytes()` / `from_bytes()` classmethod (postcard via upstream serde).
+- `Signature` — WOTS signature + Merkle authentication path. Same
+  hashable / equatable / bytes surface.
 - `SecretKey` — **deliberately not serializable** (persisting one-time-use
   signing material is a footgun). Exposes `public_key`, `slot_start`,
   `slot_end` as properties.
 - `AggregatedSignature` — variable-length zkVM SNARK proof. Round-trips
   through `to_bytes()` / `from_bytes()` (upstream's native postcard+lz4
-  form; the consensus-layer SSZ container currently wraps the same
-  payload verbatim).
+  form).
 
 ### Aggregation classes
 

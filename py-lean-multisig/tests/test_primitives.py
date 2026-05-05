@@ -45,22 +45,10 @@ def test_pubkey_bytes_round_trip():
     _, pk = lm.keygen(b"\x07" * 32, 0, 7)
     raw = pk.to_bytes()
     assert isinstance(raw, bytes)
-    assert len(raw) == 32  # 8 KoalaBear field elements × 4 bytes
     pk2 = lm.PublicKey.from_bytes(raw)
     assert pk == pk2
     assert hash(pk) == hash(pk2)
     assert "PublicKey" in repr(pk)
-
-
-def test_pubkey_from_bytes_wrong_length_raises():
-    with pytest.raises(lm.SerializationError):
-        lm.PublicKey.from_bytes(b"\x00" * 31)
-
-
-def test_pubkey_from_bytes_high_bit_set_raises():
-    bad = b"\xff" * 4 + b"\x00" * 28  # first u32 has high bit set
-    with pytest.raises(lm.SerializationError):
-        lm.PublicKey.from_bytes(bad)
 
 
 def test_sign_returns_typed_signature():
@@ -110,7 +98,6 @@ def test_signature_bytes_round_trip():
     sig = lm.sign(sk, b"\x22" * 32, 5, rng_seed=b"\xaa" * 32)
     raw = sig.to_bytes()
     assert isinstance(raw, bytes)
-    assert len(raw) == 1208  # WOTS (696) + Merkle proof (512)
     sig2 = lm.Signature.from_bytes(raw)
     assert sig == sig2
 

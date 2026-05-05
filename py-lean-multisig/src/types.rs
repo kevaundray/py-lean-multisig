@@ -9,7 +9,6 @@ use rec_aggregation::AggregatedXMSS;
 use xmss::{XmssPublicKey, XmssSecretKey, XmssSignature};
 
 use crate::error::SerializationError;
-use crate::ssz::{pubkey_from_ssz, pubkey_to_ssz, signature_from_ssz, signature_to_ssz};
 
 fn short_hex(bytes: &[u8]) -> String {
     if bytes.len() <= 8 {
@@ -23,6 +22,22 @@ fn short_hex(bytes: &[u8]) -> String {
     }
 }
 
+/// Serialize any upstream serde-derived type via postcard. We piggyback
+/// on upstream's `Serialize`/`Deserialize` derives instead of carrying a
+/// hand-written byte-layout codec; the wire format is whatever postcard
+/// produces, not consensus-layer SSZ. AggregatedSignature uses upstream's
+/// own postcard+lz4 helpers (it has compression baked in) — these helpers
+/// are for the smaller, uncompressed PublicKey/Signature.
+fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
+    postcard::to_allocvec(value).expect("postcard serialization is infallible for these types")
+}
+
+fn decode<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8], type_name: &str) -> PyResult<T> {
+    postcard::from_bytes(bytes).map_err(|e| {
+        SerializationError::new_err(format!("failed to decode {}: {}", type_name, e))
+    })
+}
+
 #[pyclass(name = "PublicKey", frozen, module = "py_lean_multisig")]
 #[derive(Clone)]
 pub struct PyPublicKey {
@@ -31,22 +46,20 @@ pub struct PyPublicKey {
 
 #[pymethods]
 impl PyPublicKey {
-    /// Decode from the canonical 32-byte wire form (SSZ flat encoding —
-    /// 8 KoalaBear field elements as LE u32s, each high bit clear).
+    /// Decode from postcard-encoded bytes (matches `to_bytes`).
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        Ok(Self {
-            inner: Arc::new(pubkey_from_ssz(data)?),
-        })
+        let pk: XmssPublicKey = decode(data, "PublicKey")?;
+        Ok(Self { inner: Arc::new(pk) })
     }
 
-    /// Encode to the canonical 32-byte wire form (SSZ flat encoding).
+    /// Encode to postcard-format bytes (round-trips with `from_bytes`).
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, &pubkey_to_ssz(&self.inner))
+        PyBytes::new(py, &encode(&*self.inner))
     }
 
     fn __repr__(&self) -> String {
-        format!("PublicKey({})", short_hex(&pubkey_to_ssz(&self.inner)))
+        format!("PublicKey({})", short_hex(&encode(&*self.inner)))
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
@@ -63,7 +76,7 @@ impl PyPublicKey {
 
     fn __hash__(&self) -> u64 {
         let mut h = DefaultHasher::new();
-        pubkey_to_ssz(&self.inner).hash(&mut h);
+        encode(&*self.inner).hash(&mut h);
         h.finish()
     }
 }
@@ -76,29 +89,26 @@ pub struct PySignature {
 
 #[pymethods]
 impl PySignature {
-    /// Decode from the canonical 1208-byte wire form (SSZ flat encoding).
+    /// Decode from postcard-encoded bytes (matches `to_bytes`).
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        Ok(Self {
-            inner: Arc::new(signature_from_ssz(data)?),
-        })
+        let sig: XmssSignature = decode(data, "Signature")?;
+        Ok(Self { inner: Arc::new(sig) })
     }
 
-    /// Encode to the canonical 1208-byte wire form (SSZ flat encoding).
+    /// Encode to postcard-format bytes (round-trips with `from_bytes`).
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, &signature_to_ssz(&self.inner))
+        PyBytes::new(py, &encode(&*self.inner))
     }
 
     fn __repr__(&self) -> String {
-        format!("Signature({})", short_hex(&signature_to_ssz(&self.inner)))
+        format!("Signature({})", short_hex(&encode(&*self.inner)))
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
-        let lhs = signature_to_ssz(&self.inner);
-        let rhs = signature_to_ssz(&other.inner);
         match op {
-            CompareOp::Eq => Ok(lhs == rhs),
-            CompareOp::Ne => Ok(lhs != rhs),
+            CompareOp::Eq => Ok(self.inner == other.inner),
+            CompareOp::Ne => Ok(self.inner != other.inner),
             _ => Err(pyo3::exceptions::PyTypeError::new_err(
                 "Signature only supports == and !=",
             )),
@@ -107,7 +117,7 @@ impl PySignature {
 
     fn __hash__(&self) -> u64 {
         let mut h = DefaultHasher::new();
-        signature_to_ssz(&self.inner).hash(&mut h);
+        encode(&*self.inner).hash(&mut h);
         h.finish()
     }
 }
@@ -145,7 +155,7 @@ impl PySecretKey {
             "SecretKey(slots={}..={}, pk={})",
             self.slot_start,
             self.slot_end,
-            short_hex(&pubkey_to_ssz(&self.pk.inner))
+            short_hex(&encode(&*self.pk.inner))
         )
     }
 }
