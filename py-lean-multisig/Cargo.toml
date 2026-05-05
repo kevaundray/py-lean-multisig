@@ -17,6 +17,7 @@ pyo3 = { version = "0.28.3" }
 xmss            = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
 backend         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
 rec_aggregation = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
+lean_vm         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
 
 hex      = "0.4"
 rand     = "0.10"
@@ -32,3 +33,4 @@ codegen-units = 1
 xmss            = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }
 backend         = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }
 rec_aggregation = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }
+lean_vm         = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }

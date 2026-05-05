@@ -780,6 +780,7 @@ version = "0.0.1"
 dependencies = [
  "backend",
  "hex",
+ "lean_vm",
  "postcard",
  "pyo3",
  "rand",

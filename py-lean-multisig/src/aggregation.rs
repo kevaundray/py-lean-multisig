@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use backend::{precompute_dft_twiddles, KoalaBear};
+use lean_vm::{MAX_WHIR_LOG_INV_RATE, MIN_WHIR_LOG_INV_RATE};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rec_aggregation::{
@@ -21,13 +22,12 @@ impl PyProver {
     #[new]
     #[pyo3(signature = (*, log_inv_rate=2))]
     fn new(log_inv_rate: usize) -> PyResult<Self> {
-        if !(1..=4).contains(&log_inv_rate) {
+        if !(MIN_WHIR_LOG_INV_RATE..=MAX_WHIR_LOG_INV_RATE).contains(&log_inv_rate) {
             return Err(PyValueError::new_err(format!(
-                "log_inv_rate must be in 1..=4, got {}",
-                log_inv_rate
+                "log_inv_rate must be in {}..={}, got {}",
+                MIN_WHIR_LOG_INV_RATE, MAX_WHIR_LOG_INV_RATE, log_inv_rate
             )));
         }
-        // Match upstream's run_aggregation_benchmark order: twiddles first, then bytecode.
         precompute_dft_twiddles::<KoalaBear>(1 << 24);
         init_aggregation_bytecode();
         Ok(Self { log_inv_rate })
@@ -58,10 +58,6 @@ impl PyProver {
             .map(|(p, s)| ((*p.inner).clone(), (*s.inner).clone()))
             .collect();
 
-        // Single materialization: collect each child's owned (Vec<XmssPublicKey>,
-        // AggregatedXMSS), then build the borrow-shaped tuple upstream wants
-        // from the same allocation. The inner AggregatedXMSS still has to be
-        // cloned per call — upstream takes it by value.
         let children_owned: Vec<(Vec<XmssPublicKey>, AggregatedXMSS)> = children
             .unwrap_or_default()
             .into_iter()

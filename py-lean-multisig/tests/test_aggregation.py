@@ -33,7 +33,7 @@ def _signers(n: int):
 
 @pytest.fixture(scope="module")
 def prover():
-    return lm.Prover(log_inv_rate=4)  # smallest proof, fastest aggregate
+    return lm.Prover(log_inv_rate=lm.MAX_LOG_INV_RATE)  # smallest proof, fastest aggregate
 
 
 @pytest.fixture(scope="module")
@@ -71,9 +71,9 @@ def test_aggregate_mismatched_lengths_raises_value_error(prover):
 
 def test_prover_log_inv_rate_validation():
     with pytest.raises(ValueError):
-        lm.Prover(log_inv_rate=0)
+        lm.Prover(log_inv_rate=lm.MIN_LOG_INV_RATE - 1)
     with pytest.raises(ValueError):
-        lm.Prover(log_inv_rate=5)
+        lm.Prover(log_inv_rate=lm.MAX_LOG_INV_RATE + 1)
 
 
 def test_aggregate_short_message_raises_serialization_error(prover):

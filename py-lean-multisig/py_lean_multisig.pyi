@@ -5,6 +5,8 @@ from typing import final
 
 __all__ = [
     "__version__",
+    "MIN_LOG_INV_RATE",
+    "MAX_LOG_INV_RATE",
     "PublicKey",
     "SecretKey",
     "Signature",
@@ -23,6 +25,12 @@ __all__ = [
 ]
 
 __version__: str
+
+# Bounds on Prover(log_inv_rate=...). Re-exported from upstream's
+# lean_vm::{MIN,MAX}_WHIR_LOG_INV_RATE — values outside this range will
+# raise ValueError.
+MIN_LOG_INV_RATE: int
+MAX_LOG_INV_RATE: int
 
 @final
 class PublicKey:
