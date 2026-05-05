@@ -97,9 +97,15 @@ agg2 = lm.AggregatedSignature.from_bytes(wire)
   `to_bytes()` / `from_bytes()` classmethod (postcard via upstream serde).
 - `Signature` — WOTS signature + Merkle authentication path. Same
   hashable / equatable / bytes surface.
-- `SecretKey` — **deliberately not serializable** (persisting one-time-use
-  signing material is a footgun). Exposes `public_key`, `slot_start`,
-  `slot_end` as properties.
+- `SecretKey` — **not serializable**: upstream's `XmssSecretKey` derives
+  only `Debug` and exposes no `to_bytes`/`from_bytes` API, so we can't
+  either. To carry a key across processes, persist the
+  `(seed, slot_start, slot_end)` triple yourself and call `keygen()`
+  again — it's deterministic. (For long slot ranges this can be slow,
+  since keygen builds the full Merkle tree. For real stateful XMSS use
+  you'd also need to track which slots have been signed; that's your
+  responsibility regardless of how the key is stored.) Exposes
+  `public_key`, `slot_start`, `slot_end` as properties.
 - `AggregatedSignature` — variable-length zkVM SNARK proof. Round-trips
   through `to_bytes()` / `from_bytes()` (upstream's native postcard+lz4
   form).

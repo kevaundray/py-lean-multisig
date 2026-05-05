@@ -151,9 +151,13 @@ impl PySignature {
     }
 }
 
-// SecretKey is intentionally NOT serializable: persisting one-time-use signing
-// material is a footgun. We capture slot_start/slot_end on the wrapper at
-// keygen time since upstream's fields are pub(crate).
+// SecretKey isn't serializable because upstream doesn't expose a way to
+// serialize XmssSecretKey: it derives only Debug, has no to_bytes/from_bytes
+// API, and all five fields are pub(crate) so we can't build our own encoder
+// from outside the crate. To re-derive a key across processes, persist the
+// (seed, slot_start, slot_end) triple and call keygen() again — it's
+// deterministic. We capture slot_start/slot_end on this wrapper at keygen
+// time since the upstream fields aren't reachable from here either.
 #[pyclass(name = "SecretKey", frozen, module = "py_lean_multisig")]
 pub struct PySecretKey {
     pub inner: Arc<XmssSecretKey>,
