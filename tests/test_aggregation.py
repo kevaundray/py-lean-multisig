@@ -142,6 +142,15 @@ def test_verify_wrong_message_raises(prover, verifier):
         verifier.verify(sorted_pks, other_msg, agg, SLOT)
 
 
+def test_verify_short_message_raises_serialization_error(verifier, child_proofs):
+    """Verifier.verify rejects a wrong-length message at the boundary
+    (before any zkVM work). Mirrors the reference wrapper's
+    test_verify_signatures_validation."""
+    (sorted_pks_a, agg_a), _ = child_proofs
+    with pytest.raises(lm.SerializationError):
+        verifier.verify(sorted_pks_a, b"\x00" * 31, agg_a, SLOT)
+
+
 def test_hierarchical_aggregation(prover, verifier, child_proofs):
     """Aggregate two leaves (2 sigs each) into child proofs, then
     aggregate the children at the top level via the `children=` kwarg.
