@@ -92,9 +92,24 @@ sorted_pks_top, agg_top = prover.aggregate(
 verifier.verify(sorted_pks_top, msg, agg_top, slot)
 ```
 
-You can also mix raw signatures with children at the same level — e.g.
-fold two existing child aggregates plus a fresh batch of N raw
-signatures into one combined proof in a single `aggregate()` call.
+You can also mix raw signatures with children at the same level — fold
+two existing child aggregates plus a fresh batch of raw signatures
+into one combined proof in a single `aggregate()` call:
+
+```python
+# Re-use sorted_pks_a / agg_a / sorted_pks_b / agg_b from above, plus
+# a fresh batch of signers not already in either child:
+pks_c, sigs_c = _signers(seed_offset=150, n=2)
+
+sorted_pks_top, agg_top = prover.aggregate(
+    pks_c, sigs_c, msg, slot,                       # fresh raw signatures
+    children=[(sorted_pks_a, agg_a),                # plus the two children
+              (sorted_pks_b, agg_b)],
+)
+
+# sorted_pks_top is the union: 2 from child A + 2 from child B + 2 fresh
+verifier.verify(sorted_pks_top, msg, agg_top, slot)
+```
 
 ## Development
 

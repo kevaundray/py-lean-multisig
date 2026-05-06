@@ -148,3 +148,40 @@ def test_hierarchical_aggregation(prover, verifier):
 
     # Verifier sees the deduplicated union of all leaf pubkeys
     verifier.verify(sorted_pks_top, MSG, agg_top, SLOT)
+
+
+def test_hierarchical_aggregation_with_fresh_raw_sigs(prover, verifier):
+    """Mixing raw signatures with children at the same level: fold two
+    existing child aggregates plus a fresh batch of raw signatures into
+    one combined proof in a single aggregate() call. Verifier sees the
+    union of all signers (children's leaves + the fresh raw ones)."""
+    # Two disjoint child batches (use distinct seed ranges so pubkeys
+    # across all three sets don't overlap)
+    pks_a, sigs_a = _signers(2)
+    pairs_b = [lm.keygen(bytes([(i + 50) % 256]) * 32, 111, 112) for i in range(2)]
+    sks_b = [sk for sk, _ in pairs_b]
+    pks_b = [pk for _, pk in pairs_b]
+    sigs_b = [
+        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 200) % 256]) * 32)
+        for i, sk in enumerate(sks_b)
+    ]
+    sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, MSG, SLOT)
+    sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, MSG, SLOT)
+
+    # A fresh batch of raw signers — NOT in either child
+    pairs_c = [lm.keygen(bytes([(i + 150) % 256]) * 32, 111, 112) for i in range(2)]
+    sks_c = [sk for sk, _ in pairs_c]
+    pks_c = [pk for _, pk in pairs_c]
+    sigs_c = [
+        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 250) % 256]) * 32)
+        for i, sk in enumerate(sks_c)
+    ]
+
+    # One aggregate() call: 2 fresh raw sigs + 2 children = 6 signers folded
+    sorted_pks_top, agg_top = prover.aggregate(
+        pks_c, sigs_c, MSG, SLOT,
+        children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
+    )
+
+    assert len(sorted_pks_top) == 6
+    verifier.verify(sorted_pks_top, MSG, agg_top, SLOT)
