@@ -11,13 +11,22 @@ MSG = b"".join(struct.pack("<I", i) for i in range(8))
 SLOT = 111
 
 
-def _signers(n: int):
-    """Generate n distinct signers + sigs for MSG at SLOT."""
-    pairs = [lm.keygen(bytes([(i + 1) % 256]) * 32, 111, 112) for i in range(n)]
+def _signers(n: int, seed_offset: int = 0):
+    """Generate n distinct signers + sigs for MSG at SLOT.
+
+    `seed_offset` shifts both the keygen seed and the rng seed by the
+    same amount, so multiple calls with disjoint offsets produce
+    disjoint signer sets — useful for hierarchical aggregation tests
+    where each child batch must have unique pubkeys.
+    """
+    pairs = [
+        lm.keygen(bytes([(i + 1 + seed_offset) % 256]) * 32, 111, 112)
+        for i in range(n)
+    ]
     sks = [sk for sk, _ in pairs]
     pks = [pk for _, pk in pairs]
     sigs = [
-        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 100) % 256]) * 32)
+        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 100 + seed_offset) % 256]) * 32)
         for i, sk in enumerate(sks)
     ]
     return pks, sigs
@@ -31,6 +40,18 @@ def prover():
 @pytest.fixture(scope="module")
 def verifier():
     return lm.Verifier()
+
+
+@pytest.fixture(scope="module")
+def child_proofs(prover):
+    """Two pre-aggregated child proofs over disjoint 2-signer batches,
+    shared across the hierarchical-aggregation tests so we don't pay
+    ~1.5s × 2 of redundant proving per test."""
+    pks_a, sigs_a = _signers(2)
+    pks_b, sigs_b = _signers(2, seed_offset=49)
+    sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, MSG, SLOT)
+    sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, MSG, SLOT)
+    return (sorted_pks_a, agg_a), (sorted_pks_b, agg_b)
 
 
 def test_aggregate_then_verify_4_sigs(prover, verifier):
@@ -121,63 +142,30 @@ def test_verify_wrong_message_raises(prover, verifier):
         verifier.verify(sorted_pks, other_msg, agg, SLOT)
 
 
-def test_hierarchical_aggregation(prover, verifier):
+def test_hierarchical_aggregation(prover, verifier, child_proofs):
     """Aggregate two leaves (2 sigs each) into child proofs, then
     aggregate the children at the top level via the `children=` kwarg.
     Verifier sees the union of all leaf pubkeys."""
-    # Two disjoint sets of signers (different seed ranges so the leaf
-    # pubkey sets don't overlap)
-    pks_a, sigs_a = _signers(2)
-    pairs_b = [lm.keygen(bytes([(i + 50) % 256]) * 32, 111, 112) for i in range(2)]
-    sks_b = [sk for sk, _ in pairs_b]
-    pks_b = [pk for _, pk in pairs_b]
-    sigs_b = [
-        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 200) % 256]) * 32)
-        for i, sk in enumerate(sks_b)
-    ]
+    (sorted_pks_a, agg_a), (sorted_pks_b, agg_b) = child_proofs
 
-    # Layer 1: aggregate each leaf separately
-    sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, MSG, SLOT)
-    sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, MSG, SLOT)
-
-    # Layer 2: aggregate the two children with no fresh raw signatures
     sorted_pks_top, agg_top = prover.aggregate(
         [], [], MSG, SLOT,
         children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
     )
 
-    # Verifier sees the deduplicated union of all leaf pubkeys
     verifier.verify(sorted_pks_top, MSG, agg_top, SLOT)
 
 
-def test_hierarchical_aggregation_with_fresh_raw_sigs(prover, verifier):
+def test_hierarchical_aggregation_with_fresh_raw_sigs(prover, verifier, child_proofs):
     """Mixing raw signatures with children at the same level: fold two
     existing child aggregates plus a fresh batch of raw signatures into
     one combined proof in a single aggregate() call. Verifier sees the
     union of all signers (children's leaves + the fresh raw ones)."""
-    # Two disjoint child batches (use distinct seed ranges so pubkeys
-    # across all three sets don't overlap)
-    pks_a, sigs_a = _signers(2)
-    pairs_b = [lm.keygen(bytes([(i + 50) % 256]) * 32, 111, 112) for i in range(2)]
-    sks_b = [sk for sk, _ in pairs_b]
-    pks_b = [pk for _, pk in pairs_b]
-    sigs_b = [
-        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 200) % 256]) * 32)
-        for i, sk in enumerate(sks_b)
-    ]
-    sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, MSG, SLOT)
-    sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, MSG, SLOT)
+    (sorted_pks_a, agg_a), (sorted_pks_b, agg_b) = child_proofs
+    # A fresh batch of raw signers — disjoint seed range so pubkeys
+    # don't collide with either child.
+    pks_c, sigs_c = _signers(2, seed_offset=149)
 
-    # A fresh batch of raw signers — NOT in either child
-    pairs_c = [lm.keygen(bytes([(i + 150) % 256]) * 32, 111, 112) for i in range(2)]
-    sks_c = [sk for sk, _ in pairs_c]
-    pks_c = [pk for _, pk in pairs_c]
-    sigs_c = [
-        lm.sign(sk, MSG, SLOT, rng_seed=bytes([(i + 250) % 256]) * 32)
-        for i, sk in enumerate(sks_c)
-    ]
-
-    # One aggregate() call: 2 fresh raw sigs + 2 children = 6 signers folded
     sorted_pks_top, agg_top = prover.aggregate(
         pks_c, sigs_c, MSG, SLOT,
         children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
