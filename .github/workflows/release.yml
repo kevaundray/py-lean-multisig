@@ -47,10 +47,13 @@ jobs:
     name: Publish to PyPI
     needs: [build]
     runs-on: ubuntu-latest
-    # PyPI Trusted Publishing — set up at
-    # https://pypi.org/manage/project/py-lean-multisig/settings/publishing/
-    # with publisher = github action, repo = this repo, workflow = release.yml,
-    # environment = pypi
+    # PyPI Trusted Publishing. Pending publisher configured at
+    # https://pypi.org/manage/account/publishing/  (account-level — used
+    # before the project exists on PyPI; flips to project-level after the
+    # first successful publish). Configured publisher claims:
+    #   repo:        kevaundray/py-lean-multisig
+    #   workflow:    release.yml
+    #   environment: pypi          (must match `environment.name` below)
     environment:
       name: pypi
       url: https://pypi.org/p/py-lean-multisig
