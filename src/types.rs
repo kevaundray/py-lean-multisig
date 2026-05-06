@@ -6,13 +6,14 @@ use backend::KoalaBear;
 use pyo3::prelude::*;
 use pyo3::pyclass::CompareOp;
 use pyo3::types::PyBytes;
-use rec_aggregation::AggregatedXMSS;
+use rec_aggregation::{TypeOneMultiSignature, TypeTwoMultiSignature};
 use xmss::{XmssPublicKey, XmssSecretKey, XmssSignature, MESSAGE_LEN_FE};
 
 use crate::error::SerializationError;
 use crate::serialization::{
-    decode_aggregated_signature, decode_public_key, decode_signature, encode_aggregated_signature,
-    encode_public_key, encode_signature, read_fes,
+    decode_multi_message_signature, decode_public_key, decode_signature,
+    decode_single_message_signature, encode_message, encode_multi_message_signature,
+    encode_public_key, encode_signature, encode_single_message_signature, read_fes,
 };
 
 const MESSAGE_BYTES: usize = MESSAGE_LEN_FE * 4;
@@ -30,6 +31,13 @@ pub(crate) fn message_from_bytes(bytes: &[u8]) -> PyResult<[KoalaBear; MESSAGE_L
     }
     let mut pos = 0;
     read_fes::<MESSAGE_LEN_FE>(bytes, &mut pos)
+}
+
+pub(crate) fn wrap_pubkeys(pks: &[XmssPublicKey]) -> Vec<PyPublicKey> {
+    pks.iter()
+        .cloned()
+        .map(|pk| PyPublicKey { inner: Arc::new(pk) })
+        .collect()
 }
 
 fn short_hex(bytes: &[u8]) -> String {
@@ -163,30 +171,133 @@ impl PySecretKey {
     }
 }
 
-#[pyclass(name = "AggregatedSignature", frozen, module = "py_lean_multisig", skip_from_py_object)]
+/// Many XMSS sigs over one `(message, slot)` aggregated into a single zkVM proof.
+/// Wraps upstream's `TypeOneMultiSignature`.
+#[pyclass(
+    name = "SingleMessageSignature",
+    frozen,
+    module = "py_lean_multisig",
+    skip_from_py_object
+)]
 #[derive(Clone)]
-pub struct PyAggregatedSignature {
-    pub(crate) inner: Arc<AggregatedXMSS>,
+pub struct PySingleMessageSignature {
+    pub(crate) inner: Arc<TypeOneMultiSignature>,
 }
 
 #[pymethods]
-impl PyAggregatedSignature {
+impl PySingleMessageSignature {
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        let agg = decode_aggregated_signature(data)?;
-        Ok(Self { inner: Arc::new(agg) })
+        let sig = decode_single_message_signature(data)?;
+        Ok(Self { inner: Arc::new(sig) })
     }
 
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, &encode_aggregated_signature(&self.inner))
+        PyBytes::new(py, &encode_single_message_signature(&self.inner))
+    }
+
+    #[getter]
+    fn message<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &encode_message(&self.inner.info.message))
+    }
+
+    #[getter]
+    fn slot(&self) -> u32 {
+        self.inner.info.slot
+    }
+
+    #[getter]
+    fn pubkeys(&self) -> Vec<PyPublicKey> {
+        wrap_pubkeys(&self.inner.info.pubkeys)
     }
 
     fn __repr__(&self) -> String {
-        let bytes = encode_aggregated_signature(&self.inner);
         format!(
-            "AggregatedSignature({} bytes, {})",
-            bytes.len(),
-            short_hex(&bytes)
+            "SingleMessageSignature(slot={}, n_signers={})",
+            self.inner.info.slot,
+            self.inner.info.pubkeys.len()
+        )
+    }
+}
+
+/// Bundles n single-message proofs, each potentially over a different
+/// `(message, slot)`. Wraps upstream's `TypeTwoMultiSignature`.
+#[pyclass(
+    name = "MultiMessageSignature",
+    frozen,
+    module = "py_lean_multisig",
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub struct PyMultiMessageSignature {
+    pub(crate) inner: Arc<TypeTwoMultiSignature>,
+}
+
+#[pymethods]
+impl PyMultiMessageSignature {
+    #[classmethod]
+    fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
+        let sig = decode_multi_message_signature(data)?;
+        Ok(Self { inner: Arc::new(sig) })
+    }
+
+    fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &encode_multi_message_signature(&self.inner))
+    }
+
+    #[getter]
+    fn components(&self) -> Vec<PyComponentInfo> {
+        self.inner
+            .info
+            .iter()
+            .cloned()
+            .map(|info| PyComponentInfo { inner: Arc::new(info) })
+            .collect()
+    }
+
+    fn __len__(&self) -> usize {
+        self.inner.info.len()
+    }
+
+    fn __repr__(&self) -> String {
+        format!("MultiMessageSignature(n_components={})", self.inner.info.len())
+    }
+}
+
+/// Read-only view of one MultiMessageSignature component's bound info.
+#[pyclass(
+    name = "ComponentInfo",
+    frozen,
+    module = "py_lean_multisig",
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub struct PyComponentInfo {
+    inner: Arc<rec_aggregation::TypeOneInfo>,
+}
+
+#[pymethods]
+impl PyComponentInfo {
+    #[getter]
+    fn message<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
+        PyBytes::new(py, &encode_message(&self.inner.message))
+    }
+
+    #[getter]
+    fn slot(&self) -> u32 {
+        self.inner.slot
+    }
+
+    #[getter]
+    fn pubkeys(&self) -> Vec<PyPublicKey> {
+        wrap_pubkeys(&self.inner.pubkeys)
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "ComponentInfo(slot={}, n_signers={})",
+            self.inner.slot,
+            self.inner.pubkeys.len()
         )
     }
 }

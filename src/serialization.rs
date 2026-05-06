@@ -5,13 +5,15 @@
 
 use backend::{KoalaBear, PrimeField32};
 use pyo3::prelude::*;
-use rec_aggregation::AggregatedXMSS;
+use rec_aggregation::{TypeOneMultiSignature, TypeTwoMultiSignature};
 use xmss::{
-    WotsSignature, XmssPublicKey, XmssSignature, LOG_LIFETIME, PUBLIC_PARAM_LEN_FE,
-    RANDOMNESS_LEN_FE, V, XMSS_DIGEST_LEN,
+    WotsSignature, XmssPublicKey, XmssSignature, LOG_LIFETIME, MESSAGE_LEN_FE,
+    PUBLIC_PARAM_LEN_FE, RANDOMNESS_LEN_FE, V, XMSS_DIGEST_LEN,
 };
 
 use crate::error::SerializationError;
+
+const MESSAGE_BYTES: usize = MESSAGE_LEN_FE * 4;
 
 pub const PUBLIC_KEY_BYTES: usize = (XMSS_DIGEST_LEN + PUBLIC_PARAM_LEN_FE) * 4;
 const _: () = assert!(PUBLIC_KEY_BYTES == 32);
@@ -22,8 +24,17 @@ const SIG_RANDOMNESS_BYTES: usize = RANDOMNESS_LEN_FE * 4;
 const SIG_FIXED_BYTES: usize = SIG_CHAIN_TIPS_BYTES + SIG_RANDOMNESS_BYTES + 4;
 const DIGEST_BYTES: usize = XMSS_DIGEST_LEN * 4;
 
-fn fe_to_bytes(fe: KoalaBear) -> [u8; 4] {
+pub(crate) fn fe_to_bytes(fe: KoalaBear) -> [u8; 4] {
     fe.as_canonical_u32().to_le_bytes()
+}
+
+/// 8 KoalaBear field elements → 32 LE bytes. Mirrors `message_from_bytes`.
+pub(crate) fn encode_message(message: &[KoalaBear; MESSAGE_LEN_FE]) -> [u8; MESSAGE_BYTES] {
+    let mut out = [0u8; MESSAGE_BYTES];
+    for (i, fe) in message.iter().enumerate() {
+        out[i * 4..(i + 1) * 4].copy_from_slice(&fe_to_bytes(*fe));
+    }
+    out
 }
 
 fn fe_from_bytes(bytes: [u8; 4]) -> PyResult<KoalaBear> {
@@ -146,11 +157,55 @@ pub fn decode_signature(bytes: &[u8]) -> PyResult<XmssSignature> {
     })
 }
 
-pub fn encode_aggregated_signature(agg: &AggregatedXMSS) -> Vec<u8> {
-    agg.serialize()
+/// Wire format for aggregated signatures: [kind: u8 | upstream-compressed body].
+/// The kind byte lets a polymorphic parser dispatch without trial-decoding,
+/// and lets each typed `from_bytes` reject the wrong kind at the boundary.
+pub(crate) const KIND_SINGLE_MESSAGE: u8 = 0x01;
+pub(crate) const KIND_MULTI_MESSAGE: u8 = 0x02;
+
+pub(crate) fn peek_kind(bytes: &[u8], label: &str) -> PyResult<u8> {
+    bytes.first().copied().ok_or_else(|| {
+        SerializationError::new_err(format!("{} must be at least 1 byte (kind tag)", label))
+    })
 }
 
-pub fn decode_aggregated_signature(bytes: &[u8]) -> PyResult<AggregatedXMSS> {
-    AggregatedXMSS::deserialize(bytes)
-        .ok_or_else(|| SerializationError::new_err("failed to decode AggregatedSignature"))
+fn split_kind<'a>(bytes: &'a [u8], expected: u8, label: &str) -> PyResult<&'a [u8]> {
+    let kind = peek_kind(bytes, label)?;
+    if kind != expected {
+        return Err(SerializationError::new_err(format!(
+            "{} has wrong kind tag: 0x{:02x} (expected 0x{:02x})",
+            label, kind, expected
+        )));
+    }
+    Ok(&bytes[1..])
+}
+
+pub fn encode_single_message_signature(sig: &TypeOneMultiSignature) -> Vec<u8> {
+    let body = sig.compress();
+    let mut out = Vec::with_capacity(1 + body.len());
+    out.push(KIND_SINGLE_MESSAGE);
+    out.extend_from_slice(&body);
+    out
+}
+
+pub fn decode_single_message_signature(bytes: &[u8]) -> PyResult<TypeOneMultiSignature> {
+    let body = split_kind(bytes, KIND_SINGLE_MESSAGE, "SingleMessageSignature")?;
+    TypeOneMultiSignature::decompress(body).ok_or_else(|| {
+        SerializationError::new_err("failed to decode SingleMessageSignature body")
+    })
+}
+
+pub fn encode_multi_message_signature(sig: &TypeTwoMultiSignature) -> Vec<u8> {
+    let body = sig.compress();
+    let mut out = Vec::with_capacity(1 + body.len());
+    out.push(KIND_MULTI_MESSAGE);
+    out.extend_from_slice(&body);
+    out
+}
+
+pub fn decode_multi_message_signature(bytes: &[u8]) -> PyResult<TypeTwoMultiSignature> {
+    let body = split_kind(bytes, KIND_MULTI_MESSAGE, "MultiMessageSignature")?;
+    TypeTwoMultiSignature::decompress(body).ok_or_else(|| {
+        SerializationError::new_err("failed to decode MultiMessageSignature body")
+    })
 }
