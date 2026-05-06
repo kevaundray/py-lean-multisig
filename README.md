@@ -2,7 +2,7 @@
 
 Python bindings for leanMultisig: XMSS signatures and zkVM-backed signature aggregation.
 
-Requires Python >= 3.11. Wheels are built for Linux (x86_64, aarch64) and macOS (x86_64, arm64).
+Requires Python >= 3.11. Wheels are built for Linux (x86_64, aarch64; glibc + musl) and macOS arm64.
 
 ## Install
 
