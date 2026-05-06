@@ -11,12 +11,37 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
       # Maintains a "release PR" that aggregates pending conventional-commit
       # changes — bumps the version in Cargo.toml + Cargo.lock, updates
-      # CHANGELOG.md. Merging that PR creates a vX.Y.Z tag, which triggers
-      # release.yml to build wheels + publish to PyPI.
-      - uses: googleapis/release-please-action@v4
+      # CHANGELOG.md. When that PR is merged, RP creates a vX.Y.Z tag and
+      # the trigger-release job below fires release.yml against that tag.
+      - id: rp
+        uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # GITHUB_TOKEN-driven tag pushes do NOT trigger workflows (GitHub anti-loop
+  # protection), so we can't just rely on release.yml's `on: push: tags`
+  # trigger. Instead, when RP cuts a release, dispatch release.yml directly
+  # against the new tag.
+  trigger-release:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'release.yml',
+              ref: '${{ needs.release-please.outputs.tag_name }}',
+            });
