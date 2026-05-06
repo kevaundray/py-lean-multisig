@@ -4,6 +4,7 @@ use pyo3::wrap_pyfunction;
 
 mod aggregation;
 mod error;
+mod serialization;
 mod types;
 mod xmss;
 

@@ -10,6 +10,10 @@ use rec_aggregation::AggregatedXMSS;
 use xmss::{XmssPublicKey, XmssSecretKey, XmssSignature, MESSAGE_LEN_FE};
 
 use crate::error::SerializationError;
+use crate::serialization::{
+    decode_aggregated_signature, decode_public_key, decode_signature, encode_aggregated_signature,
+    encode_public_key, encode_signature,
+};
 
 const MESSAGE_BYTES: usize = MESSAGE_LEN_FE * 4;
 const _: () = assert!(MESSAGE_BYTES == 32);
@@ -51,16 +55,6 @@ fn short_hex(bytes: &[u8]) -> String {
     }
 }
 
-fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
-    postcard::to_allocvec(value).expect("postcard serialization is infallible for these types")
-}
-
-fn decode<'a, T: serde::Deserialize<'a>>(bytes: &'a [u8], type_name: &str) -> PyResult<T> {
-    postcard::from_bytes(bytes).map_err(|e| {
-        SerializationError::new_err(format!("failed to decode {}: {}", type_name, e))
-    })
-}
-
 #[pyclass(name = "PublicKey", frozen, module = "py_lean_multisig", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyPublicKey {
@@ -71,16 +65,16 @@ pub struct PyPublicKey {
 impl PyPublicKey {
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        let pk: XmssPublicKey = decode(data, "PublicKey")?;
+        let pk = decode_public_key(data)?;
         Ok(Self { inner: Arc::new(pk) })
     }
 
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, &encode(&*self.inner))
+        PyBytes::new(py, &encode_public_key(&self.inner))
     }
 
     fn __repr__(&self) -> String {
-        format!("PublicKey({})", short_hex(&encode(&*self.inner)))
+        format!("PublicKey({})", short_hex(&encode_public_key(&self.inner)))
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
@@ -110,16 +104,16 @@ pub struct PySignature {
 impl PySignature {
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        let sig: XmssSignature = decode(data, "Signature")?;
+        let sig = decode_signature(data)?;
         Ok(Self { inner: Arc::new(sig) })
     }
 
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, &encode(&*self.inner))
+        PyBytes::new(py, &encode_signature(&self.inner))
     }
 
     fn __repr__(&self) -> String {
-        format!("Signature({})", short_hex(&encode(&*self.inner)))
+        format!("Signature({})", short_hex(&encode_signature(&self.inner)))
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
@@ -169,7 +163,7 @@ impl PySecretKey {
     }
 
     fn __repr__(&self) -> String {
-        let pk_bytes = encode(&self.inner.public_key());
+        let pk_bytes = encode_public_key(&self.inner.public_key());
         format!(
             "SecretKey(slots={}..={}, pk={})",
             self.slot_start,
@@ -189,20 +183,16 @@ pub struct PyAggregatedSignature {
 impl PyAggregatedSignature {
     #[classmethod]
     fn from_bytes(_cls: &Bound<'_, pyo3::types::PyType>, data: &[u8]) -> PyResult<Self> {
-        let agg = AggregatedXMSS::deserialize(data).ok_or_else(|| {
-            SerializationError::new_err(
-                "failed to decode AggregatedSignature (postcard+lz4 deserialization failed)",
-            )
-        })?;
+        let agg = decode_aggregated_signature(data)?;
         Ok(Self { inner: Arc::new(agg) })
     }
 
     fn to_bytes<'py>(&self, py: Python<'py>) -> Bound<'py, PyBytes> {
-        PyBytes::new(py, &self.inner.serialize())
+        PyBytes::new(py, &encode_aggregated_signature(&self.inner))
     }
 
     fn __repr__(&self) -> String {
-        let bytes = self.inner.serialize();
+        let bytes = encode_aggregated_signature(&self.inner);
         format!(
             "AggregatedSignature({} bytes, {})",
             bytes.len(),
