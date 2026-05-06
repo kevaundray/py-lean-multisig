@@ -4,7 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "py-lean-multisig"
-version = "0.0.1"
+# Version lives in Cargo.toml; maturin reads it from there. Release Please
+# bumps the Cargo.toml version on each release PR.
+dynamic = ["version"]
 description = "Python bindings for leanMultisig: XMSS signatures + zkVM aggregation"
 requires-python = ">=3.11"
 license = { text = "MIT OR Apache-2.0" }
