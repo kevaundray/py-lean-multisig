@@ -4,8 +4,8 @@ use pyo3::wrap_pyfunction;
 
 mod aggregation;
 mod error;
-mod primitives;
 mod types;
+mod xmss;
 
 #[pymodule]
 fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -19,8 +19,8 @@ fn py_lean_multisig(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::PyAggregatedSignature>()?;
     m.add_class::<aggregation::PyProver>()?;
     m.add_class::<aggregation::PyVerifier>()?;
-    m.add_function(wrap_pyfunction!(primitives::keygen, m)?)?;
-    m.add_function(wrap_pyfunction!(primitives::sign, m)?)?;
-    m.add_function(wrap_pyfunction!(primitives::verify, m)?)?;
+    m.add_function(wrap_pyfunction!(xmss::keygen, m)?)?;
+    m.add_function(wrap_pyfunction!(xmss::sign, m)?)?;
+    m.add_function(wrap_pyfunction!(xmss::verify, m)?)?;
     Ok(())
 }
