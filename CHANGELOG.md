@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/kevaundray/py-lean-multisig/compare/v0.2.0...v0.3.0) (2026-05-06)
+
+
+### Features
+
+* use basic binary encoding with signature and public key ([188c183](https://github.com/kevaundray/py-lean-multisig/commit/188c183f45a38c7975fa842f934fd0d26acb68db))
+
 ## [0.2.0](https://github.com/kevaundray/py-lean-multisig/compare/v0.0.1...v0.2.0) (2026-05-06)
 
 
