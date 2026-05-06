@@ -51,6 +51,50 @@ verifier.verify(sorted_pks, msg, agg, slot)
 agg2 = lm.AggregatedSignature.from_bytes(agg.to_bytes())
 ```
 
+## Hierarchical aggregation
+
+Aggregated proofs are themselves zkVM-verifiable, so a `Prover` can fold
+existing aggregates into a new one via the `children=` kwarg. Useful for
+tree-shaped aggregation (each node aggregates its sub-tree's proofs)
+and for distributing proving work across machines (each shard produces
+a child proof; a coordinator folds them).
+
+```python
+import py_lean_multisig as lm
+
+msg, slot = b"\x42" * 32, 5
+
+def _signers(seed_offset, n):
+    pairs = [lm.keygen(bytes([seed_offset + i]) * 32, 0, 1023) for i in range(n)]
+    pks  = [pk for _, pk in pairs]
+    sigs = [lm.sign(sk, msg, slot, rng_seed=bytes([seed_offset + 100 + i]) * 32)
+            for i, (sk, _) in enumerate(pairs)]
+    return pks, sigs
+
+prover   = lm.Prover(log_inv_rate=4)
+verifier = lm.Verifier()
+
+# Two disjoint sets of signers, aggregated independently.
+pks_a, sigs_a = _signers(seed_offset=1,  n=2)
+pks_b, sigs_b = _signers(seed_offset=50, n=2)
+sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, msg, slot)
+sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, msg, slot)
+
+# Top level: no fresh raw signatures, just fold the two child proofs.
+# Each child is the (sorted_pub_keys, AggregatedSignature) tuple
+# returned by the previous aggregate() call.
+sorted_pks_top, agg_top = prover.aggregate(
+    [], [], msg, slot,
+    children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
+)
+
+verifier.verify(sorted_pks_top, msg, agg_top, slot)
+```
+
+You can also mix raw signatures with children at the same level — e.g.
+fold two existing child aggregates plus a fresh batch of N raw
+signatures into one combined proof in a single `aggregate()` call.
+
 ## Development
 
 Uses [`uv`](https://github.com/astral-sh/uv) for venv + dependency
