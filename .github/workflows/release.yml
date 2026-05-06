@@ -13,11 +13,15 @@ env:
     3.11
     3.12
     3.13
+    3.14
 
 permissions:
   contents: read
 
 jobs:
+  # manylinux2014 wheels for glibc-based Linux distros (the common case)
+  # plus macOS. Linux x86_64 and aarch64 cover the realistic install base
+  # for v0.0.x; add x86/armv7/s390x/ppc64le later if anyone asks.
   build:
     name: ${{ matrix.platform.runner }} / ${{ matrix.platform.target }}
     runs-on: ${{ matrix.platform.runner }}
@@ -55,9 +59,59 @@ jobs:
           name: wheels-${{ matrix.platform.runner }}-${{ matrix.platform.target }}
           path: dist/*.whl
 
+  # musllinux wheels for Alpine / musl-based distros (Docker base images,
+  # some CI runners, etc.). Without these, musl users would fall back to
+  # building from sdist on every install — slow but functional.
+  musllinux:
+    name: musllinux / ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runner: ubuntu-latest
+            target: x86_64
+          - runner: ubuntu-latest
+            target: aarch64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSIONS }}
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          command: build
+          args: --release --out dist --find-interpreter
+          manylinux: musllinux_1_2
+          sccache: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-musllinux-${{ matrix.platform.target }}
+          path: dist/*.whl
+
+  # Source distribution as a fallback for platforms we don't ship wheels
+  # for (Windows, less-common archs, etc.). pip falls back to sdist when
+  # no compatible wheel exists; users get a from-source build.
+  sdist:
+    name: sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist/*.tar.gz
+
   publish:
     name: Publish to PyPI
-    needs: [build]
+    needs: [build, musllinux, sdist]
     runs-on: ubuntu-latest
     # PyPI Trusted Publishing. Pending publisher configured at
     # https://pypi.org/manage/account/publishing/  (account-level — used
