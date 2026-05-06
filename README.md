@@ -54,10 +54,11 @@ agg2 = lm.AggregatedSignature.from_bytes(agg.to_bytes())
 ## Hierarchical aggregation
 
 Aggregated proofs are themselves zkVM-verifiable, so a `Prover` can fold
-existing aggregates into a new one via the `children=` kwarg. Useful for
-tree-shaped aggregation (each node aggregates its sub-tree's proofs)
+existing aggregates into a new one via the `children=`. 
+
+This is useful for tree-shaped aggregation (each node aggregates its sub-tree's proofs)
 and for distributing proving work across machines (each shard produces
-a child proof; a coordinator folds them).
+a child proof and a coordinator folds them).
 
 ```python
 import py_lean_multisig as lm
