@@ -8,15 +8,28 @@ name = "py-lean-multisig"
 # bumps the Cargo.toml version on each release PR.
 dynamic = ["version"]
 description = "Python bindings for leanMultisig: XMSS signatures + zkVM aggregation"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+authors = [{ name = "Kevaundray Wedderburn" }]
 requires-python = ">=3.11"
-license = { text = "MIT OR Apache-2.0" }
+keywords = ["xmss", "post-quantum", "ethereum", "leanmultisig", "zkvm", "snark"]
 classifiers = [
   "Programming Language :: Rust",
   "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Security :: Cryptography",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "mypy>=1.10"]
+
+[project.urls]
+Repository = "https://github.com/kevaundray/py-lean-multisig"
+Issues = "https://github.com/kevaundray/py-lean-multisig/issues"
+Upstream = "https://github.com/leanEthereum/leanMultisig"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
