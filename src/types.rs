@@ -12,15 +12,14 @@ use xmss::{XmssPublicKey, XmssSecretKey, XmssSignature, MESSAGE_LEN_FE};
 use crate::error::SerializationError;
 use crate::serialization::{
     decode_aggregated_signature, decode_public_key, decode_signature, encode_aggregated_signature,
-    encode_public_key, encode_signature,
+    encode_public_key, encode_signature, read_fes,
 };
 
 const MESSAGE_BYTES: usize = MESSAGE_LEN_FE * 4;
 const _: () = assert!(MESSAGE_BYTES == 32);
 
 /// Convert 32 bytes (8 little-endian u32s, each high bit clear) into the
-/// `[KoalaBear; 8]` upstream wants for messages. Returns `SerializationError`
-/// on wrong length or any value outside KoalaBear (high bit set).
+/// `[KoalaBear; 8]` upstream wants for messages.
 pub(crate) fn message_from_bytes(bytes: &[u8]) -> PyResult<[KoalaBear; MESSAGE_LEN_FE]> {
     if bytes.len() != MESSAGE_BYTES {
         return Err(SerializationError::new_err(format!(
@@ -29,18 +28,8 @@ pub(crate) fn message_from_bytes(bytes: &[u8]) -> PyResult<[KoalaBear; MESSAGE_L
             bytes.len()
         )));
     }
-    let mut out = [KoalaBear::default(); MESSAGE_LEN_FE];
-    for (i, chunk) in bytes.chunks_exact(4).enumerate() {
-        let v = u32::from_le_bytes(chunk.try_into().unwrap());
-        if v & 0x8000_0000 != 0 {
-            return Err(SerializationError::new_err(format!(
-                "message u32 at index {} has high bit set (0x{:08x}); each value must be < 2^31",
-                i, v
-            )));
-        }
-        out[i] = KoalaBear::new(v);
-    }
-    Ok(out)
+    let mut pos = 0;
+    read_fes::<MESSAGE_LEN_FE>(bytes, &mut pos)
 }
 
 fn short_hex(bytes: &[u8]) -> String {
@@ -113,7 +102,8 @@ impl PySignature {
     }
 
     fn __repr__(&self) -> String {
-        format!("Signature({})", short_hex(&encode_signature(&self.inner)))
+        // Avoid encoding the full ~1.2KB signature for a short identifier.
+        format!("Signature(h=0x{:016x})", self.__hash__())
     }
 
     fn __richcmp__(&self, other: &Self, op: CompareOp) -> PyResult<bool> {
