@@ -10,7 +10,7 @@ Requires Python >= 3.11. Wheels are built for Linux (x86_64, aarch64) and macOS 
 pip install py-lean-multisig
 ```
 
-## Quickstart
+## XMSS keygen / sign / verify
 
 ```python
 import py_lean_multisig as lm
