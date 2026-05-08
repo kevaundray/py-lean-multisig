@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/ethereum/py-lean-multisig/compare/v0.3.0...v0.4.0) (2026-05-08)
+
+
+### Features
+
+* Fix license line formatting in README.md ([#7](https://github.com/ethereum/py-lean-multisig/issues/7)) ([18bbc35](https://github.com/ethereum/py-lean-multisig/commit/18bbc3598a59281a8e966570b01ce935ea9836a3))
+
 ## [0.3.0](https://github.com/kevaundray/py-lean-multisig/compare/v0.2.0...v0.3.0) (2026-05-06)
 
 
