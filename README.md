@@ -47,8 +47,8 @@ verifier = lm.Verifier()
 sorted_pks, agg = prover.aggregate(pks, sigs, msg, slot)
 verifier.verify(sorted_pks, msg, agg, slot)
 
-# AggregatedSignature bytes round-trip
-agg2 = lm.AggregatedSignature.from_bytes(agg.to_bytes())
+# Round-trip through bytes
+agg2 = lm.SingleMessageSignature.from_bytes(agg.to_bytes())
 ```
 
 ## Hierarchical aggregation
@@ -82,11 +82,11 @@ sorted_pks_a, agg_a = prover.aggregate(pks_a, sigs_a, msg, slot)
 sorted_pks_b, agg_b = prover.aggregate(pks_b, sigs_b, msg, slot)
 
 # Top level: no fresh raw signatures, just fold the two child proofs.
-# Each child is the (sorted_pub_keys, AggregatedSignature) tuple
-# returned by the previous aggregate() call.
+# `children=` takes a list of SingleMessageSignature directly — each
+# child carries its own bound pubkeys via `child.pubkeys`.
 sorted_pks_top, agg_top = prover.aggregate(
     [], [], msg, slot,
-    children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
+    children=[agg_a, agg_b],
 )
 
 verifier.verify(sorted_pks_top, msg, agg_top, slot)
@@ -103,13 +103,68 @@ pks_c, sigs_c = _signers(seed_offset=150, n=2)
 
 sorted_pks_top, agg_top = prover.aggregate(
     pks_c, sigs_c, msg, slot,                       # fresh raw signatures
-    children=[(sorted_pks_a, agg_a),                # plus the two children
-              (sorted_pks_b, agg_b)],
+    children=[agg_a, agg_b],                        # plus the two children
 )
 
 # sorted_pks_top is the union: 2 from child A + 2 from child B + 2 fresh
 verifier.verify(sorted_pks_top, msg, agg_top, slot)
 ```
+
+## Multi-message bundles
+
+Aggregating signatures over **different** `(message, slot)` pairs requires a
+two-step path: build a `SingleMessageSignature` per `(message, slot)`, then
+bundle them into a `MultiMessageSignature` (up to 16 components). Each
+component keeps its own `(message, slot, pubkeys)` triple.
+
+```python
+import py_lean_multisig as lm
+
+prover, verifier = lm.Prover(log_inv_rate=4), lm.Verifier()
+
+# Build one SingleMessage per (message, slot)
+_, sm_a = prover.aggregate(pks_a, sigs_a, msg_a, slot_a)
+_, sm_b = prover.aggregate(pks_b, sigs_b, msg_b, slot_b)
+_, sm_c = prover.aggregate(pks_c, sigs_c, msg_c, slot_c)
+
+# Bundle into one MultiMessage proof
+multi = prover.merge([sm_a, sm_b, sm_c])
+assert isinstance(multi, lm.MultiMessageSignature)
+assert len(multi) == 3
+
+# Verify: caller passes (pks, msg, slot) for each component, in the
+# same order the proof binds them.
+verifier.verify_multi(
+    [(c.pubkeys, c.message, c.slot) for c in multi.components],
+    multi,
+)
+
+# Recover one component as a standalone SingleMessage (1 zkVM op).
+sm_b_recovered = prover.split(multi, index=1)
+verifier.verify(sm_b_recovered.pubkeys, msg_b, sm_b_recovered, slot_b)
+```
+
+## Polymorphic deserialization
+
+When you receive an aggregated signature whose kind isn't known up front
+(e.g. from a peer):
+
+```python
+proof = lm.parse_aggregated(bytes_from_network)
+match proof:
+    case lm.SingleMessageSignature():
+        verifier.verify(proof.pubkeys, proof.message, proof, proof.slot)
+    case lm.MultiMessageSignature():
+        verifier.verify_multi(
+            [(c.pubkeys, c.message, c.slot) for c in proof.components],
+            proof,
+        )
+```
+
+The wire format prepends a 1-byte kind tag (`0x01` = single-message,
+`0x02` = multi-message) so the polymorphic parser dispatches without
+trial-decoding. Typed `from_bytes` (e.g. `SingleMessageSignature.from_bytes`)
+rejects the wrong tag with a clear error.
 
 ## Development
 

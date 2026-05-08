@@ -14,10 +14,10 @@ crate-type = ["cdylib"]
 # build/check work normally without the extension-module link rules.
 pyo3 = { version = "0.28.3" }
 
-xmss            = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
-backend         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
-rec_aggregation = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
-lean_vm         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "ef27715cef439953406abe05aead36055bdf42af" }
+xmss            = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "19f1c774dc50a437885529e2377805c0af7ad420" }
+backend         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "19f1c774dc50a437885529e2377805c0af7ad420" }
+rec_aggregation = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "19f1c774dc50a437885529e2377805c0af7ad420" }
+lean_vm         = { git = "https://github.com/leanEthereum/leanMultisig.git", rev = "19f1c774dc50a437885529e2377805c0af7ad420" }
 
 hex      = "0.4"
 rand     = "0.10"
@@ -27,10 +27,3 @@ serde    = { version = "1", features = ["derive"] }
 [profile.release]
 lto = "thin"
 codegen-units = 1
-
-# See: https://github.com/leanEthereum/leanMultisig/pull/212
-[patch."https://github.com/leanEthereum/leanMultisig.git"]
-xmss            = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }
-backend         = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }
-rec_aggregation = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }
-lean_vm         = { git = "https://github.com/kevaundray/leanMultisig.git", branch = "kw/rust-embed-src-code" }

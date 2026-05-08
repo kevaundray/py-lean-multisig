@@ -33,16 +33,6 @@ def _signers(n: int, seed_offset: int = 0):
 
 
 @pytest.fixture(scope="module")
-def prover():
-    return lm.Prover(log_inv_rate=lm.MAX_LOG_INV_RATE)  # smallest proof, fastest aggregate
-
-
-@pytest.fixture(scope="module")
-def verifier():
-    return lm.Verifier()
-
-
-@pytest.fixture(scope="module")
 def child_proofs(prover):
     """Two pre-aggregated child proofs over disjoint 2-signer batches,
     shared across the hierarchical-aggregation tests so we don't pay
@@ -57,12 +47,16 @@ def child_proofs(prover):
 def test_aggregate_then_verify_4_sigs(prover, verifier):
     pks, sigs = _signers(4)
     sorted_pks, agg = prover.aggregate(pks, sigs, MSG, SLOT)
-    assert isinstance(agg, lm.AggregatedSignature)
+    assert isinstance(agg, lm.SingleMessageSignature)
     assert isinstance(sorted_pks, list)
     assert all(isinstance(p, lm.PublicKey) for p in sorted_pks)
     assert len(sorted_pks) == 4
     # Returns None on success
     assert verifier.verify(sorted_pks, MSG, agg, SLOT) is None
+    # Bound info is exposed on the typed signature
+    assert agg.message == MSG
+    assert agg.slot == SLOT
+    assert [p.to_bytes() for p in agg.pubkeys] == [p.to_bytes() for p in sorted_pks]
 
 
 def test_aggregate_returns_sorted_pks(prover):
@@ -95,19 +89,26 @@ def test_aggregate_short_message_raises_serialization_error(prover):
         prover.aggregate(pks, sigs, b"\x00" * 31, SLOT)
 
 
-def test_aggregated_signature_round_trip(prover):
+def test_single_message_signature_round_trip(prover):
     pks, sigs = _signers(2)
     _, agg = prover.aggregate(pks, sigs, MSG, SLOT)
     raw = agg.to_bytes()
     assert isinstance(raw, bytes)
     assert len(raw) > 0
-    agg2 = lm.AggregatedSignature.from_bytes(raw)
+    agg2 = lm.SingleMessageSignature.from_bytes(raw)
     assert agg.to_bytes() == agg2.to_bytes()
 
 
-def test_aggregated_signature_from_bytes_garbage_raises():
+def test_single_message_signature_from_bytes_garbage_raises():
     with pytest.raises(lm.SerializationError):
-        lm.AggregatedSignature.from_bytes(b"not a valid postcard+lz4 payload")
+        lm.SingleMessageSignature.from_bytes(b"not a valid postcard+lz4 payload")
+
+
+def test_single_message_signature_from_bytes_wrong_kind_tag_raises():
+    # 0x02 is the multi-message kind; SingleMessageSignature.from_bytes
+    # must reject it instead of trying to decode as single-message.
+    with pytest.raises(lm.SerializationError):
+        lm.SingleMessageSignature.from_bytes(b"\x02" + b"\x00" * 100)
 
 
 def test_verify_tampered_aggregated_signature_raises(prover, verifier):
@@ -117,7 +118,7 @@ def test_verify_tampered_aggregated_signature_raises(prover, verifier):
     raw = bytearray(agg.to_bytes())
     raw[len(raw) // 2] ^= 0x01
     try:
-        tampered = lm.AggregatedSignature.from_bytes(bytes(raw))
+        tampered = lm.SingleMessageSignature.from_bytes(bytes(raw))
     except lm.SerializationError:
         # If the flipped bit landed in the lz4 prefix, decompression will
         # fail before we get to the verifier. That's still a rejection of
@@ -155,11 +156,11 @@ def test_hierarchical_aggregation(prover, verifier, child_proofs):
     """Aggregate two leaves (2 sigs each) into child proofs, then
     aggregate the children at the top level via the `children=` kwarg.
     Verifier sees the union of all leaf pubkeys."""
-    (sorted_pks_a, agg_a), (sorted_pks_b, agg_b) = child_proofs
+    (_, agg_a), (_, agg_b) = child_proofs
 
     sorted_pks_top, agg_top = prover.aggregate(
         [], [], MSG, SLOT,
-        children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
+        children=[agg_a, agg_b],
     )
 
     verifier.verify(sorted_pks_top, MSG, agg_top, SLOT)
@@ -170,14 +171,14 @@ def test_hierarchical_aggregation_with_fresh_raw_sigs(prover, verifier, child_pr
     existing child aggregates plus a fresh batch of raw signatures into
     one combined proof in a single aggregate() call. Verifier sees the
     union of all signers (children's leaves + the fresh raw ones)."""
-    (sorted_pks_a, agg_a), (sorted_pks_b, agg_b) = child_proofs
+    (_, agg_a), (_, agg_b) = child_proofs
     # A fresh batch of raw signers — disjoint seed range so pubkeys
     # don't collide with either child.
     pks_c, sigs_c = _signers(2, seed_offset=149)
 
     sorted_pks_top, agg_top = prover.aggregate(
         pks_c, sigs_c, MSG, SLOT,
-        children=[(sorted_pks_a, agg_a), (sorted_pks_b, agg_b)],
+        children=[agg_a, agg_b],
     )
 
     assert len(sorted_pks_top) == 6

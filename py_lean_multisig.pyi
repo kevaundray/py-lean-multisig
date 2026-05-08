@@ -10,12 +10,15 @@ __all__ = [
     "PublicKey",
     "SecretKey",
     "Signature",
-    "AggregatedSignature",
+    "SingleMessageSignature",
+    "MultiMessageSignature",
+    "ComponentInfo",
     "Prover",
     "Verifier",
     "keygen",
     "sign",
     "verify",
+    "parse_aggregated",
     "LeanMultisigError",
     "KeygenError",
     "SignError",
@@ -63,10 +66,41 @@ class Signature:
     def __repr__(self) -> str: ...
 
 @final
-class AggregatedSignature:
+class SingleMessageSignature:
+    """Many XMSS sigs over one (message, slot) aggregated into a single proof.
+    Wraps upstream's TypeOneMultiSignature."""
     @classmethod
-    def from_bytes(cls, data: bytes) -> "AggregatedSignature": ...
+    def from_bytes(cls, data: bytes) -> "SingleMessageSignature": ...
     def to_bytes(self) -> bytes: ...
+    @property
+    def message(self) -> bytes: ...
+    @property
+    def slot(self) -> int: ...
+    @property
+    def pubkeys(self) -> list[PublicKey]: ...
+    def __repr__(self) -> str: ...
+
+@final
+class MultiMessageSignature:
+    """Bundles n SingleMessageSignatures, each potentially over a different
+    (message, slot). Wraps upstream's TypeTwoMultiSignature."""
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "MultiMessageSignature": ...
+    def to_bytes(self) -> bytes: ...
+    @property
+    def components(self) -> list["ComponentInfo"]: ...
+    def __len__(self) -> int: ...
+    def __repr__(self) -> str: ...
+
+@final
+class ComponentInfo:
+    """Read-only view of one MultiMessageSignature component's bound info."""
+    @property
+    def message(self) -> bytes: ...
+    @property
+    def slot(self) -> int: ...
+    @property
+    def pubkeys(self) -> list[PublicKey]: ...
     def __repr__(self) -> str: ...
 
 @final
@@ -80,8 +114,17 @@ class Prover:
         message: bytes,
         slot: int,
         *,
-        children: list[tuple[list[PublicKey], AggregatedSignature]] | None = ...,
-    ) -> tuple[list[PublicKey], AggregatedSignature]: ...
+        children: list[SingleMessageSignature] | None = ...,
+    ) -> tuple[list[PublicKey], SingleMessageSignature]: ...
+    def merge(
+        self,
+        signatures: list[SingleMessageSignature],
+    ) -> MultiMessageSignature: ...
+    def split(
+        self,
+        agg: MultiMessageSignature,
+        index: int,
+    ) -> SingleMessageSignature: ...
 
 @final
 class Verifier:
@@ -90,8 +133,13 @@ class Verifier:
         self,
         pub_keys: list[PublicKey],
         message: bytes,
-        agg: AggregatedSignature,
+        agg: SingleMessageSignature,
         slot: int,
+    ) -> None: ...
+    def verify_multi(
+        self,
+        components: list[tuple[list[PublicKey], bytes, int]],
+        agg: MultiMessageSignature,
     ) -> None: ...
 
 def keygen(seed: bytes, slot_start: int, slot_end: int) -> tuple[SecretKey, PublicKey]: ...
@@ -103,6 +151,15 @@ def sign(
     rng_seed: bytes | None = ...,
 ) -> Signature: ...
 def verify(pk: PublicKey, message: bytes, sig: Signature, slot: int) -> None: ...
+
+def parse_aggregated(
+    data: bytes,
+) -> SingleMessageSignature | MultiMessageSignature:
+    """Decode an aggregated signature whose kind isn't known up front
+    (e.g. received from an untrusted source). Reads the leading kind tag
+    (0x01 / 0x02) and returns the matching concrete class. Raises
+    SerializationError on a missing or unknown tag, or a malformed body."""
+    ...
 
 class LeanMultisigError(Exception): ...
 class KeygenError(LeanMultisigError): ...
